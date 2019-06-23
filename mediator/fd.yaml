@@ -456,8 +456,20 @@
        description: atmosphere export
          bottom layer zonal wind
      #
+     - standard_name: Sa_u
+       alias: uutrue
+       canonical_units: m s-1
+       description: atmosphere export
+         bottom layer zonal wind
+     #
      - standard_name: Sa_v
        alias: inst_merid_wind_height_lowest
+       canonical_units: m s-1
+       description: atmosphere export
+         bottom layer meridional wind
+     #
+     - standard_name: Sa_v
+       alias: vvtrue
        canonical_units: m s-1
        description: atmosphere export
          bottom layer meridional wind
@@ -970,6 +982,12 @@
        description: sea-ice export to atm
          ice fraction (varies with time)
      #
+     - standard_name: Si_ifrac
+       alias: sea_ice_concentration
+       canonical_units: 1
+       description: sea-ice export to atm
+         ice fraction (varies with time)
+     #
      - standard_name: Si_ifrac_n
        alias: ice_fraction_n
        canonical_units: 1
@@ -1128,6 +1146,11 @@
        canonical_units: m s-1
        description: ocean export
      #
+     - standard_name: So_u 
+       alias: uucurr
+       canonical_units: m s-1
+       description: ocean export
+     #    
      - standard_name: So_u10
        canonical_units: m
        description: ocean export
@@ -1140,6 +1163,12 @@
        alias: ocn_current_merid
        canonical_units: m s-1
        description: ocean export
+     #   
+     - standard_name: So_v 
+       alias: vvcurr
+       canonical_units: m s-1
+       description: ocean export
+
      #
      #-----------------------------------
      # section: river export
@@ -1425,12 +1454,14 @@
          cesm only
      #
      - standard_name: Sw_ustokes
+       alias: uscurr
        canonical_units: m/s
        description: ocean import from wave
          Stokes drift u component
          cesm only
      #
      - standard_name: Sw_vstokes
+       alias: vscurr
        canonical_units: m/s
        description: ocean import from wave
          Stokes drift v component
