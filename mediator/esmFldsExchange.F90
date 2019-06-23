@@ -1555,8 +1555,8 @@ contains
     ! to ocn: Stokes drift v component from wave
     ! to ocn: Stokes drift depth from wave
     !-----------------------------
-    allocate(flds(4))
-    flds = (/'Sw_lamult ', 'Sw_ustokes', 'Sw_vstokes', 'Sw_hstokes'/)
+    allocate(flds(5))
+    flds = (/'Sw_lamult ', 'Sw_ustokes', 'Sw_vstokes', 'Sw_hstokes', 'wave_elevation_spectrum'/)
 
     do n = 1,size(flds)
        fldname = trim(flds(n))
@@ -1598,6 +1598,7 @@ contains
     ! to ice: dust dry deposition flux (size 2) from atm
     ! to ice: dust dry deposition flux (size 3) from atm
     ! to ice: dust dry deposition flux (size 4) from atm
+    ! to ice: wave elevation spectrum from wave
     ! ---------------------------------------------------------------------
     allocate(flds(9))
     flds = (/'Faxa_lwdn  '    , 'Faxa_swndr '   , 'Faxa_swvdr '   , 'Faxa_swndf ' , 'Faxa_swvdf ', &
@@ -1886,6 +1887,21 @@ contains
        end if
     end do
     deallocate(flds)
+
+    ! ---------------------------------------------------------------------
+    ! to ice: ocean melt and freeze potential from ocn
+    ! ---------------------------------------------------------------------
+    if (phase == 'advertise') then
+       call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
+       call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum')
+    else
+       if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
+            fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then
+          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapbilnr, 'one', 'unset')
+          call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
+               mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
+       end if
+    end if
 
     !=====================================================================
     ! FIELDS TO RIVER (comprof)
