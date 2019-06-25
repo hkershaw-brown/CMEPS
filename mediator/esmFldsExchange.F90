@@ -1556,7 +1556,11 @@ contains
     ! to ocn: Stokes drift depth from wave
     !-----------------------------
     allocate(flds(5))
-    flds = (/'Sw_lamult ', 'Sw_ustokes', 'Sw_vstokes', 'Sw_hstokes', 'wave_elevation_spectrum'/)
+    flds = (/'Sw_lamult              ',  &
+             'Sw_ustokes             ',  &
+             'Sw_vstokes             ',  &
+             'Sw_hstokes             ',  &
+             'wave_elevation_spectrum'/)
 
     do n = 1,size(flds)
        fldname = trim(flds(n))
