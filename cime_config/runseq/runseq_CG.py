@@ -75,7 +75,7 @@ def runseq(case, coupling_times):
         outfile.write ("  ROF -> MED :remapMethod=redist     \n")
         outfile.write ("  WAV -> MED :remapMethod=redist     \n")
         outfile.write ("  ATM -> MED :remapMethod=redist     \n")
-        outfile.write ("  @ocn_cpl_dt   #ocean coupling step \n")
+        outfile.write ("@" + str(ocn_cpl_dt) + "             \n") #ocean coupling step
         outfile.write ("    OCN                              \n")
         outfile.write ("  @                                  \n")
         outfile.write ("  OCN -> MED :remapMethod=redist     \n")
