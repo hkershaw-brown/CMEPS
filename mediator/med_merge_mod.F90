@@ -176,9 +176,14 @@ contains
                       else if (ESMF_FieldBundleIsCreated(FBImp(compsrc), rc=rc)) then
 
                          if (FB_FldChk(FBImp(compsrc), trim(merge_field), rc=rc)) then
+
                             call med_merge_auto_field(trim(merge_type), &
                                  FBOut, fldname, FB=FBImp(compsrc), FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
-                            if (ChkErr(rc,__LINE__,u_FILE_u)) return
+                            if (ChkErr(rc,__LINE__,u_FILE_u)) then 
+                              print*, 'merge_fracname ', trim(fldname), trim(merge_fracname)
+                              rc = ESMF_FAILURE
+                              return
+                            endif
                          end if
 
                       end if ! end of single merge

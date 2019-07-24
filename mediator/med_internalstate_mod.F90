@@ -32,15 +32,15 @@ module med_internalstate_mod
   ! tcraig, turned off glc2ocn and glc2ice for time being
   logical, public, parameter :: med_coupling_allowed(ncomps,ncomps) = &
        reshape([ .false., .false., .false., .false., .false., .false., .false., .false., &  ! med
-       .false., .false., .true. , .true. , .true. , .false., .false., .false., &  ! atm
-       .false., .true. , .false., .false., .false., .true. , .false., .true. , &  ! lnd
-       .false., .true. , .false., .false., .true. , .true. , .true. , .false., &  ! ocn
-       .false., .true. , .false., .true. , .false., .true. , .false., .false., &  ! ice
-       .false., .false., .true. , .false., .false., .false., .false., .false., &  ! rof
-       .false., .true. , .false., .true. , .true. , .false., .false., .false., &  ! wav
-       .false., .false., .true. , .false., .false., .false., .false., .false.  ], & ! glc
+                 .false., .false., .true. , .true. , .true. , .false., .false., .false., &  ! atm
+                 .false., .true. , .false., .false., .false., .true. , .false., .true. , &  ! lnd
+                 .false., .true. , .false., .false., .true. , .true. , .true. , .false., &  ! ocn
+                 .false., .true. , .false., .true. , .false., .true. , .true., .false., &  ! ice
+                 .false., .false., .true. , .false., .false., .false., .false., .false., &  ! rof
+                 .false., .true. , .false., .true. , .true. , .false., .false., .false., &  ! wav
+                 .false., .false., .true. , .false., .false., .false., .false., .false.  ], & ! glc
        shape(med_coupling_allowed)) 
-   !   med      atm      lnd      ocn      ice      rof      wav      glc
+             !     med      atm      lnd      ocn      ice      rof      wav      glc
 
   ! private internal state to keep instance data
   type InternalStateStruct

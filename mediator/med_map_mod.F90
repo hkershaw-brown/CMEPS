@@ -746,10 +746,19 @@ contains
              !-------------------------------------------------
              ! unity or no normalization
              !-------------------------------------------------
+   !HK put diagnose here before and after
+       call FB_Field_diagnose(FBDst, fldname, &
+            string=trim(subname) //' before  FBImp('//trim(compname(srccomp))//','//trim(compname(destcomp))//') ', rc=rc)
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
 
              ! map src field to destination grid
              call map_field_src2dst (trim(fldname), srcfield, dstfield, RouteHandles, mapindex, rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
+
+       call FB_Field_diagnose(FBDst, fldname, &
+            string=trim(subname) //' after  FBImp('//trim(compname(srccomp))//','//trim(compname(destcomp))//') ', rc=rc)
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
+
 
              ! obtain unity normalization factor and multiply interpolated field by reciprocal of normalization factor
              if (trim(mapnorm) == 'one') then
@@ -758,7 +767,10 @@ contains
                 call ESMF_FieldGet(lfield, farrayPtr=data_norm, rc=rc)
                 if (chkerr(rc,__LINE__,u_FILE_u)) return
 
+
                 call norm_field_dest(trim(fldname), dstfield, data_norm, rc)
+
+
              end if ! mapnorm is 'one'
 
           end if ! mapnorm is 'one' or 'nne'

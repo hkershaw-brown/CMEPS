@@ -1889,7 +1889,7 @@ contains
     deallocate(flds)
 
     ! ---------------------------------------------------------------------
-    ! to ice: ocean melt and freeze potential from ocn
+    ! to ice: wave_elevation_spectrum from wav
     ! ---------------------------------------------------------------------
     if (phase == 'advertise') then
        call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
