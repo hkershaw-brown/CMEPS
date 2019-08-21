@@ -1559,7 +1559,7 @@ contains
     flds = (/'Sw_lamult              ', &
              'Sw_ustokes             ', &
              'Sw_vstokes             ', &
-             'Sw_hstokesi            ', &
+             'Sw_hstokes             ', &
              'wave_elevation_spectrum'/)
 
     do n = 1,size(flds)
