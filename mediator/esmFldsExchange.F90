@@ -1559,8 +1559,9 @@ contains
     flds = (/'Sw_lamult              ', &
              'Sw_ustokes             ', &
              'Sw_vstokes             ', &
-             'Sw_hstokes             ', &
-             'wave_elevation_spectrum'/)
+             'Sw_hstokes             '/)!, &
+!             'wave_elevation_spectrum'/)  !HK TODO does wave_elevation_spectrum
+! need to go to the ocean? No
 
     do n = 1,size(flds)
        fldname = trim(flds(n))
@@ -1797,6 +1798,21 @@ contains
     end if
 
     ! ---------------------------------------------------------------------
+    ! to ice: wave_elevation_spectrum from wav
+    ! ---------------------------------------------------------------------
+    if (phase == 'advertise') then 
+       call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
+       call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum')
+    else 
+       if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
+            fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then 
+          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapfcopy, 'unset', 'unset') !HK mapbilnr, one?
+          call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
+               mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
+       end if
+    end if
+
+    ! ---------------------------------------------------------------------
     ! to ice: frozen runoff from rof and glc
     ! ---------------------------------------------------------------------
     do n = 1,size(iso)
@@ -1891,21 +1907,6 @@ contains
        end if
     end do
     deallocate(flds)
-
-    ! ---------------------------------------------------------------------
-    ! to ice: wave_elevation_spectrum from wav
-    ! ---------------------------------------------------------------------
-    if (phase == 'advertise') then
-       call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
-       call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum')
-    else
-       if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
-            fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then
-          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapbilnr, 'one', 'unset')
-          call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
-               mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
-       end if
-    end if
 
     !=====================================================================
     ! FIELDS TO RIVER (comprof)

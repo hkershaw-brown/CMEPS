@@ -893,6 +893,8 @@ contains
     call ESMF_FieldGet(dstfield, rank=lrank, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
+print*, 'HK norm_field_dest ', trim(fldname), lrank
+
     if (lrank == 1) then
        call ESMF_FieldGet(dstfield, farrayPtr=data1d, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return

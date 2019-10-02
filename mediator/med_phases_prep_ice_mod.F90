@@ -76,6 +76,7 @@ contains
     !---------------------------------------
 
     nullify(is_local%wrap)
+    !HK is this were wave_elevation_spectrum is 1D?
     call ESMF_GridCompGetInternalState(gcomp, is_local, rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
@@ -113,12 +114,16 @@ contains
        !---------------------------------------
        !--- auto merges to create FBExp(compice)
        !---------------------------------------
+print*, 'HK before med_merge_auto'
+!HK FBImp has wave_elevation_spectrum as 1D
+! subroutine med_merge_auto(compout_name,      FBOut,                       FBfrac,                         FBImp,                         fldListTo,  rc)
+!call med_merge_auto(trim(compname(compice)), is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), is_local%wrap%FBImp(:,compice), fldListTo(compice), rc=rc)
 
        call med_merge_auto(trim(compname(compice)), &
             is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), &
             is_local%wrap%FBImp(:,compice), fldListTo(compice), rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
-
+print*, 'HK after med_merge_auto'
        !---------------------------------------
        !--- custom calculations
        !---------------------------------------

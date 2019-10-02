@@ -49,7 +49,7 @@ contains
     use esmFlds               , only : shr_nuopc_fldList_GetNumFlds
     use esmFlds               , only : shr_nuopc_fldList_GetFldInfo
     use perf_mod              , only : t_startf, t_stopf
-
+    use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Field_diagnose  !HK
     ! ----------------------------------------------
     ! Auto merge based on fldListTo info
     ! ----------------------------------------------
@@ -89,6 +89,7 @@ contains
     call ESMF_FieldBundleGet(FBOut, fieldCount=cnt, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+
     ! Loop over all fields in field bundle FBOut
     do n = 1,cnt
 
@@ -117,7 +118,6 @@ contains
 
                    call merge_listGetName(merge_fields, nm, merge_field, rc)
                    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
                    if (merge_type /= 'unset' .and. merge_field /= 'unset') then
 
                       ! Perform merge
@@ -137,11 +137,13 @@ contains
                                return
                             endif
                             if (FB_FldChk(FBMed1, trim(merge_field), rc=rc)) then
+call FB_Field_diagnose(FBMed1, trim(merge_field),'FBMed1 taco', rc)
                                call med_merge_auto_field(trim(merge_type), &
                                     FBOut, fldname, FB=FBMed1, FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                                if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
                             else if (FB_FldChk(FBMed2, trim(merge_field), rc=rc)) then
+call FB_Field_diagnose(FBMed2, trim(merge_field),'FBMed2 taco', rc)
                                call med_merge_auto_field(trim(merge_type), &
                                     FBOut, fldname, FB=FBMed2, FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                                if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -161,6 +163,7 @@ contains
                                return
                             endif
                             if (FB_FldChk(FBMed1, trim(merge_field), rc=rc)) then
+call FB_Field_diagnose(FBMed1, trim(merge_field),'FBMed1 second taco', rc)
                                call med_merge_auto_field(trim(merge_type), &
                                     FBOut, fldname, FB=FBMed1, FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                                if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -176,11 +179,12 @@ contains
                       else if (ESMF_FieldBundleIsCreated(FBImp(compsrc), rc=rc)) then
 
                          if (FB_FldChk(FBImp(compsrc), trim(merge_field), rc=rc)) then
-
+!HK wave_elevation_spectrum is 1D here
+call FB_Field_diagnose(FBImp(compsrc), trim(merge_field),'FBImp taco', rc)
                             call med_merge_auto_field(trim(merge_type), &
                                  FBOut, fldname, FB=FBImp(compsrc), FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                             if (ChkErr(rc,__LINE__,u_FILE_u)) then 
-                              print*, 'merge_fracname ', trim(fldname), trim(merge_fracname)
+                              print*, 'merge_fracname ', trim(fldname), ' ',  trim(merge_fracname) !HK
                               rc = ESMF_FAILURE
                               return
                             endif
@@ -212,6 +216,8 @@ contains
     use ESMF                  , only : ESMF_LogWrite, ESMF_LogMsg_Info
     use ESMF                  , only : ESMF_FieldBundle, ESMF_FieldBundleGet
     use ESMF                  , only : ESMF_FieldGet, ESMF_Field
+ use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Field_diagnose  !HK
+ use shr_nuopc_methods_mod , only : Field_diagnose    => shr_nuopc_methods_Field_diagnose !HK
 
     ! input/output variables
     character(len=*)      ,intent(in)    :: merge_type
@@ -262,6 +268,9 @@ contains
     ! Get appropriate field pointers
     !-------------------------
 
+call FB_Field_diagnose(FB, trim(FBfld),'input taco', rc)
+call FB_Field_diagnose(FBout, trim(FBoutfld),'output taco', rc)
+
     ! Get field pointer to output field
     call ESMF_FieldBundleGet(FBout, fieldName=trim(FBoutfld), field=lfield, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
@@ -270,9 +279,11 @@ contains
     if (lrank == 1) then
        call ESMF_FieldGet(lfield, farrayPtr=dp1, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
-    else if (lrank == 2) then
+    elsE if (lrank == 2) then
+       ! wave_elevation_spectrum is rank 2 for outputfield
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_output, &
             gridToFieldMap=gridToFieldMap_output, rc=rc)
+       print*, 'hello lrank = 2, FBout ', trim(FBoutfld)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
        call ESMF_FieldGet(lfield, farrayPtr=dp2, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
@@ -284,18 +295,26 @@ contains
     call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     if (lrank == 1) then
+       !HK bug: wave_elevation_spectrum is rank 1 for inputfield
+!ungriddedUBound_input(1) = 11  !HK set this first
+       print*, 'hello lrank = 1, FBfld ', trim(FBfld)
        call ESMF_FieldGet(lfield, farrayPtr=dpf1, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
+       print*, 'ALL: 1 `:', trim(FBfld), ' output(1)', ungriddedUBound_output(1), 'input(1)', ungriddedUBound_input(1)
     else if (lrank == 2) then
+       print*, 'hello lrank = 2, FBfld ', trim(FBfld)
+!ungriddedUBound_input(1) = 11  !HK set this first
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_input, &
             gridToFieldMap=gridToFieldMap_input, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
        call ESMF_FieldGet(lfield, farrayPtr=dpf2, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
+       print*, 'ALL: 2: ', trim(FBfld), ' output(1)', ungriddedUBound_output(1), 'input(1)', ungriddedUBound_input(1)
     end if
 
     ! error checks
     if (ungriddedUBound_output(1) /= ungriddedUBound_input(1)) then
+       print*, 'ungriddedUBound_output(1)', ungriddedUBound_output(1), 'ungriddedUBound_input(1)', ungriddedUBound_input(1), trim(FBoutfld), trim(FBfld)
        call ESMF_LogWrite(trim(subname)//"ungriddedUBound_input not equal to ungriddedUBound_output", ESMF_LOGMSG_INFO)
        rc = ESMF_FAILURE
        return

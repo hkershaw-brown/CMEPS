@@ -1388,6 +1388,7 @@ contains
     use med_phases_profile_mod  , only : med_phases_profile
     use med_map_mod             , only : med_map_MapNorm_init, med_map_RouteHandles_init
     use med_io_mod              , only : med_io_init
+use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Field_diagnose  !HK
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
