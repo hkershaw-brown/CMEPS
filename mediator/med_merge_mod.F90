@@ -296,14 +296,12 @@ call FB_Field_diagnose(FBout, trim(FBoutfld),'output taco', rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     if (lrank == 1) then
        !HK bug: wave_elevation_spectrum is rank 1 for inputfield
-!ungriddedUBound_input(1) = 11  !HK set this first
        print*, 'hello lrank = 1, FBfld ', trim(FBfld)
        call ESMF_FieldGet(lfield, farrayPtr=dpf1, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
        print*, 'ALL: 1 `:', trim(FBfld), ' output(1)', ungriddedUBound_output(1), 'input(1)', ungriddedUBound_input(1)
     else if (lrank == 2) then
        print*, 'hello lrank = 2, FBfld ', trim(FBfld)
-!ungriddedUBound_input(1) = 11  !HK set this first
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_input, &
             gridToFieldMap=gridToFieldMap_input, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return

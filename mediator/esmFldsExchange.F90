@@ -1807,6 +1807,7 @@ contains
        if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
             fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then 
           call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapfcopy, 'unset', 'unset') !HK mapbilnr, one?
+          !call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
           call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
                mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
        end if

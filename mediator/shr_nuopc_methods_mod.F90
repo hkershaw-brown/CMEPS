@@ -280,7 +280,6 @@ contains
                   purpose="Instance", valueList=gridToFieldMap, rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-          print*, 'AAAAARRR ', trim(lfieldNameList(n)), lrank , ungriddedLBound, ungriddedUBound
              ! get 2d pointer for field
              call ESMF_FieldGet(lfield, farrayptr=dataptr2d, rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
@@ -1538,9 +1537,6 @@ contains
 
     call ESMF_FieldGet(field, rank=lrank, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-
-print*, 'cheese lrank', lrank, trim(fieldname), ' ', string
-
 
     if (lrank == 0) then
        ! no local data
