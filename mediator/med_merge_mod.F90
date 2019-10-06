@@ -299,7 +299,7 @@ call FB_Field_diagnose(FBout, trim(FBoutfld),'output taco', rc)
        print*, 'hello lrank = 1, FBfld ', trim(FBfld)
        call ESMF_FieldGet(lfield, farrayPtr=dpf1, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
-       print*, 'ALL: 1 `:', trim(FBfld), ' output(1)', ungriddedUBound_output(1), 'input(1)', ungriddedUBound_input(1)
+       print*, 'ALL: 1 `:', trim(FBfld), !' output(1)', ungriddedUBound_output(1), 'input(1)', ungriddedUBound_input(1)
     else if (lrank == 2) then
        print*, 'hello lrank = 2, FBfld ', trim(FBfld)
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_input, &
