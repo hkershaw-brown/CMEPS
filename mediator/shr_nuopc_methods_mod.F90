@@ -58,6 +58,7 @@ module shr_nuopc_methods_mod
   public shr_nuopc_methods_FB_GetFldPtr
   public shr_nuopc_methods_FB_getNameN
   public shr_nuopc_methods_FB_getFieldN
+  public shr_nuopc_methods_FB_getFieldByName
   public shr_nuopc_methods_FB_FieldRegrid
   public shr_nuopc_methods_FB_getNumflds
   public shr_nuopc_methods_FB_Field_diagnose
@@ -78,7 +79,6 @@ module shr_nuopc_methods_mod
   public shr_nuopc_methods_Distgrid_Match
   public shr_nuopc_methods_FieldPtr_compare
   public shr_nuopc_methods_States_GetSharedFlds
-  public shr_nuopc_methods_FB_getFieldByName !HK
 
   private shr_nuopc_methods_Grid_Write
   private shr_nuopc_methods_Grid_Print
@@ -90,7 +90,6 @@ module shr_nuopc_methods_mod
   private shr_nuopc_methods_FB_GeomPrint
   private shr_nuopc_methods_FB_GeomWrite
   private shr_nuopc_methods_FB_RWFields
-  !HK private shr_nuopc_methods_FB_getFieldByName
   private shr_nuopc_methods_FB_SetFldPtr
   private shr_nuopc_methods_FB_copyFB2FB
   private shr_nuopc_methods_FB_accumFB2FB

@@ -157,13 +157,13 @@ contains
 
     ! Regrid atm import field bundle from atm to ocn grid as input for ocn/atm flux calculation
     call med_map_FB_Regrid_Norm( &
-         fldListFr(compatm)%flds, compatm, compocn, &
-         is_local%wrap%FBImp(compatm,compatm), &
-         is_local%wrap%FBImp(compatm,compocn), &
-         is_local%wrap%FBFrac(compatm), &
-         is_local%wrap%FBFrac(compocn), &
-         is_local%wrap%FBNormOne(compatm,compocn,:), &
-         is_local%wrap%RH(compatm,compocn,:), &
+         fldsSrc=fldListFr(compatm)%flds, &
+         srccomp=compatm, destcomp=compocn, &
+         FBSrc=is_local%wrap%FBImp(compatm,compatm), &
+         FBDst=is_local%wrap%FBImp(compatm,compocn), &
+         FBFracSrc=is_local%wrap%FBFrac(compatm), &
+         FBNormOne=is_local%wrap%FBNormOne(compatm,compocn,:), &
+         RouteHandles=is_local%wrap%RH(compatm,compocn,:), &
          string=trim(compname(compatm))//'2'//trim(compname(compocn)), rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
@@ -505,7 +505,7 @@ contains
          aoflux%roce_16O, aoflux%roce_HDO, aoflux%roce_18O, &
          aoflux%evap, aoflux%evap_16O, aoflux%evap_HDO, aoflux%evap_18O, &
          aoflux%taux, aoflux%tauy, aoflux%tref, aoflux%qref, &
-         aoflux%duu10n, ustar_sv=aoflux%ustar, re_sv=aoflux%re, ssq_sv=aoflux%ssq, &
+         0, aoflux%duu10n, ustar_sv=aoflux%ustar, re_sv=aoflux%re, ssq_sv=aoflux%ssq, &
          missval = 0.0_r8)
 
     do n = 1,lsize

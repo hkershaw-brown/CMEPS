@@ -22,6 +22,7 @@ module MED
   use shr_nuopc_methods_mod , only : FB_Reset           => shr_nuopc_methods_FB_Reset
   use shr_nuopc_methods_mod , only : FB_Copy            => shr_nuopc_methods_FB_Copy
   use shr_nuopc_methods_mod , only : FB_FldChk          => shr_nuopc_methods_FB_FldChk
+  use shr_nuopc_methods_mod , only : FB_diagnose        => shr_nuopc_methods_FB_diagnose
   use shr_nuopc_methods_mod , only : clock_timeprint    => shr_nuopc_methods_clock_timeprint
   use shr_nuopc_time_mod    , only : set_stop_alarm     => shr_nuopc_time_set_component_stop_alarm
   use shr_nuopc_time_mod    , only : alarmInit          => shr_nuopc_time_alarmInit 
@@ -68,8 +69,9 @@ contains
     use med_phases_prep_ice_mod , only: med_phases_prep_ice
     use med_phases_prep_lnd_mod , only: med_phases_prep_lnd
     use med_phases_prep_wav_mod , only: med_phases_prep_wav
-    use med_phases_prep_glc_mod , only: med_phases_prep_glc
-    use med_phases_prep_rof_mod , only: med_phases_prep_rof_accum_fast
+    use med_phases_prep_glc_mod , only: med_phases_prep_glc_accum
+    use med_phases_prep_glc_mod , only: med_phases_prep_glc_avg
+    use med_phases_prep_rof_mod , only: med_phases_prep_rof_accum
     use med_phases_prep_rof_mod , only: med_phases_prep_rof_avg
     use med_phases_prep_ocn_mod , only: med_phases_prep_ocn_map
     use med_phases_prep_ocn_mod , only: med_phases_prep_ocn_merge
@@ -256,10 +258,10 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
-         phaseLabelList=(/"med_phases_prep_rof_accum_fast"/), userRoutine=mediator_routine_Run, rc=rc)
+         phaseLabelList=(/"med_phases_prep_rof_accum"/), userRoutine=mediator_routine_Run, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
-         specPhaseLabel="med_phases_prep_rof_accum_fast", specRoutine=med_phases_prep_rof_accum_fast, rc=rc)
+         specPhaseLabel="med_phases_prep_rof_accum", specRoutine=med_phases_prep_rof_accum, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !------------------
@@ -278,10 +280,17 @@ contains
     !------------------
 
     call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
-         phaseLabelList=(/"med_phases_prep_glc"/), userRoutine=mediator_routine_Run, rc=rc)
+         phaseLabelList=(/"med_phases_prep_glc_avg"/), userRoutine=mediator_routine_Run, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
-         specPhaseLabel="med_phases_prep_glc", specRoutine=med_phases_prep_glc, rc=rc)
+         specPhaseLabel="med_phases_prep_glc_avg", specRoutine=med_phases_prep_glc_avg, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
+         phaseLabelList=(/"med_phases_prep_glc_accum"/), userRoutine=mediator_routine_Run, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
+         specPhaseLabel="med_phases_prep_glc_accum", specRoutine=med_phases_prep_glc_accum, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !------------------
@@ -1382,6 +1391,7 @@ contains
     use esmFldsExchange_mod     , only : esmFldsExchange
     use med_fraction_mod        , only : med_fraction_init, med_fraction_set
     use med_phases_restart_mod  , only : med_phases_restart_read
+    use med_phases_prep_glc_mod , only : med_phases_prep_glc_init
     use med_phases_prep_atm_mod , only : med_phases_prep_atm
     use med_phases_ocnalb_mod   , only : med_phases_ocnalb_run
     use med_phases_aofluxes_mod , only : med_phases_aofluxes_run
@@ -1767,6 +1777,12 @@ use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Fie
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call med_fraction_set(gcomp,rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    ! should this be added here?
+    if (is_local%wrap%comp_present(compocn)) then
+       call med_phases_ocnalb_run(gcomp, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    end if
 
     !---------------------------------------
     ! Carry out data dependency for atm initialization if needed
