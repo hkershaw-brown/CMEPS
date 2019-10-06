@@ -17,6 +17,7 @@ contains
 
   subroutine med_phases_prep_ice(gcomp, rc)
 
+    use ESMF                  , only : ESMF_Field,ESMF_FieldGet !HK debugging
     use ESMF                  , only : operator(/=)
     use ESMF                  , only : ESMF_GridComp, ESMF_GridCompGet, ESMF_StateGet 
     use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
@@ -24,7 +25,7 @@ contains
     use ESMF                  , only : ESMF_LOGMSG_ERROR, ESMF_FAILURE
     use ESMF                  , only : ESMF_StateItem_Flag, ESMF_STATEITEM_NOTFOUND
     use NUOPC                 , only : NUOPC_IsConnected
-    use esmFlds               , only : compatm, compice, comprof, compglc, ncomps, compname
+    use esmFlds               , only : compatm, compice, comprof, compglc, ncomps, compname, compwav
     use esmFlds               , only : fldListFr, fldListTo
     use esmFlds               , only : mapbilnr
     use shr_nuopc_utils_mod   , only : chkerr            => shr_nuopc_utils_ChkErr
@@ -35,6 +36,7 @@ contains
     use shr_nuopc_methods_mod , only : FB_getNumFlds     => shr_nuopc_methods_FB_getNumFlds
     use shr_nuopc_methods_mod , only : State_GetScalar   => shr_nuopc_methods_State_GetScalar
     use shr_nuopc_methods_mod , only : State_SetScalar   => shr_nuopc_methods_State_SetScalar
+    use shr_nuopc_methods_mod , only : FB_getFieldByName => shr_nuopc_methods_FB_getFieldByName
     use med_constants_mod     , only : CS, R8, dbug_flag => med_constants_dbug_flag
     use med_merge_mod         , only : med_merge_auto
     use med_map_mod           , only : med_map_FB_Regrid_Norm
@@ -62,6 +64,10 @@ contains
     real(r8)                       :: nextsw_cday
     logical                        :: first_precip_fact_call = .true.
     character(len=*),parameter     :: subname='(med_phases_prep_ice)'
+    !HK debugging
+    integer                        :: lrank
+    type(ESMF_Field)               :: lfield
+
     !---------------------------------------
 
     call t_startf('MED:'//subname)
@@ -76,6 +82,7 @@ contains
     !---------------------------------------
 
     nullify(is_local%wrap)
+    !HK is this were wave_elevation_spectrum is 1D?
     call ESMF_GridCompGetInternalState(gcomp, is_local, rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
@@ -91,6 +98,14 @@ contains
 
     if (ncnt > 0) then
 
+             !HK Aim: verify that the mapping wav->ice for the wave spectrum is causing the problem in the input wave field. 
+             call FB_getFieldByName(is_local%wrap%FBImp(compwav,compwav), 'wave_elevation_spectrum' , lfield, rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             write(6,*)'lrank before mapping is ',lrank
+             !HK end             
+
        !---------------------------------------
        !--- map to create FBImp(:,compice)
        !---------------------------------------
@@ -98,27 +113,40 @@ contains
        do n1 = 1,ncomps
           if (is_local%wrap%med_coupling_active(n1,compice)) then
              call med_map_FB_Regrid_Norm( &
-                  fldListFr(n1)%flds, n1, compice, &
-                  is_local%wrap%FBImp(n1,n1), &
-                  is_local%wrap%FBImp(n1,compice), &
-                  is_local%wrap%FBFrac(n1), &
-                  is_local%wrap%FBFrac(compice), &
-                  is_local%wrap%FBNormOne(n1,compice,:), &
-                  is_local%wrap%RH(n1,compice,:), &
+                  fldsSrc=fldListFr(n1)%flds, &
+                  srccomp=n1, destcomp=compice, &
+                  FBSrc=is_local%wrap%FBImp(n1,n1), &
+                  FBDst=is_local%wrap%FBImp(n1,compice), &
+                  FBFracSrc=is_local%wrap%FBFrac(n1), &
+                  FBNormOne=is_local%wrap%FBNormOne(n1,compice,:), &
+                  RouteHandles=is_local%wrap%RH(n1,compice,:), &
                   string=trim(compname(n1))//'2'//trim(compname(compice)), rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
           end if
        enddo
 
+
+             !HK Aim: verify that the mapping wav->ice for the wave spectrum is causing the problem in the input wave field. 
+             call FB_getFieldByName(is_local%wrap%FBImp(compwav,compice), 'wave_elevation_spectrum' , lfield, rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             write(6,*)'lrank after mapping is ',lrank 
+             !HK end
+
        !---------------------------------------
        !--- auto merges to create FBExp(compice)
        !---------------------------------------
+print*, 'HK before med_merge_auto'
+!HK FBImp has wave_elevation_spectrum as 1D
+! subroutine med_merge_auto(compout_name,      FBOut,                       FBfrac,                         FBImp,                         fldListTo,  rc)
+!call med_merge_auto(trim(compname(compice)), is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), is_local%wrap%FBImp(:,compice), fldListTo(compice), rc=rc)
 
        call med_merge_auto(trim(compname(compice)), &
             is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), &
             is_local%wrap%FBImp(:,compice), fldListTo(compice), rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
-
+print*, 'HK after med_merge_auto'
        !---------------------------------------
        !--- custom calculations
        !---------------------------------------

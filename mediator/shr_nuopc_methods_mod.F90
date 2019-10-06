@@ -58,6 +58,7 @@ module shr_nuopc_methods_mod
   public shr_nuopc_methods_FB_GetFldPtr
   public shr_nuopc_methods_FB_getNameN
   public shr_nuopc_methods_FB_getFieldN
+  public shr_nuopc_methods_FB_getFieldByName
   public shr_nuopc_methods_FB_FieldRegrid
   public shr_nuopc_methods_FB_getNumflds
   public shr_nuopc_methods_FB_Field_diagnose
@@ -89,7 +90,6 @@ module shr_nuopc_methods_mod
   private shr_nuopc_methods_FB_GeomPrint
   private shr_nuopc_methods_FB_GeomWrite
   private shr_nuopc_methods_FB_RWFields
-  private shr_nuopc_methods_FB_getFieldByName
   private shr_nuopc_methods_FB_SetFldPtr
   private shr_nuopc_methods_FB_copyFB2FB
   private shr_nuopc_methods_FB_accumFB2FB
@@ -256,6 +256,7 @@ contains
           ! determine rank of field
           call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
+
 
           if (lrank == 2) then
 
@@ -1445,7 +1446,7 @@ contains
     use ESMF, only : ESMF_FieldBundle
 
     ! input/output variables
-    type(ESMF_FieldBundle), intent(inout)  :: FB
+    type(ESMF_FieldBundle), intent(in)  :: FB  !HK was inout
     character(len=*), intent(in)           :: fieldname
     character(len=*), intent(in), optional :: string
     integer         , intent(out)          :: rc
@@ -1475,14 +1476,14 @@ contains
        ! no local data
     elseif (lrank == 1) then
        if (size(dataPtr1d) > 0) then
-          write(msgString,'(A,3g14.7,i8)') trim(subname)//' '//trim(lstring)//': '//trim(fieldname), &
+          write(msgString,'(A,3g14.7,i8)') trim(subname)//' '//trim(lstring)//' 1D: '//trim(fieldname), &
                minval(dataPtr1d), maxval(dataPtr1d), sum(dataPtr1d), size(dataPtr1d)
        else
           write(msgString,'(A,a)') trim(subname)//' '//trim(lstring)//': '//trim(fieldname)," no data"
        endif
     elseif (lrank == 2) then
        if (size(dataPtr2d) > 0) then
-          write(msgString,'(A,3g14.7,i8)') trim(subname)//' '//trim(lstring)//': '//trim(fieldname), &
+          write(msgString,'(A,3g14.7,i8)') trim(subname)//' '//trim(lstring)//' 2D: '//trim(fieldname), &
                minval(dataPtr2d), maxval(dataPtr2d), sum(dataPtr2d), size(dataPtr2d)
        else
           write(msgString,'(A,a)') trim(subname)//' '//trim(lstring)//': '//trim(fieldname)," no data"

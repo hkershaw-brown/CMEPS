@@ -1559,11 +1559,12 @@ contains
     ! to ocn: Stokes drift depth from wave
     !-----------------------------
     allocate(flds(5))
-    flds = (/'Sw_lamult              ',  &
-             'Sw_ustokes             ',  &
-             'Sw_vstokes             ',  &
-             'Sw_hstokes             ',  &
-             'wave_elevation_spectrum'/)
+    flds = (/'Sw_lamult              ', &
+             'Sw_ustokes             ', &
+             'Sw_vstokes             ', &
+             'Sw_hstokes             '/)!, &
+!             'wave_elevation_spectrum'/)  !HK TODO does wave_elevation_spectrum
+! need to go to the ocean? No
 
     do n = 1,size(flds)
        fldname = trim(flds(n))
@@ -1800,6 +1801,22 @@ contains
     end if
 
     ! ---------------------------------------------------------------------
+    ! to ice: wave_elevation_spectrum from wav
+    ! ---------------------------------------------------------------------
+    if (phase == 'advertise') then 
+       call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
+       call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum')
+    else 
+       if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
+            fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then 
+          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapfcopy, 'unset', 'unset') !HK mapbilnr, one?
+          !call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
+          call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
+               mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
+       end if
+    end if
+
+    ! ---------------------------------------------------------------------
     ! to ice: frozen runoff from rof and glc
     ! ---------------------------------------------------------------------
     do n = 1,size(iso)
@@ -1895,21 +1912,6 @@ contains
     end do
     deallocate(flds)
 
-    ! ---------------------------------------------------------------------
-    ! to ice: ocean melt and freeze potential from ocn
-    ! ---------------------------------------------------------------------
-    if (phase == 'advertise') then
-       call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
-       call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum')
-    else
-       if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
-            fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then
-          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapbilnr, 'one', 'unset')
-          call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
-               mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
-       end if
-    end if
-
     !=====================================================================
     ! FIELDS TO RIVER (comprof)
     !=====================================================================
@@ -1962,24 +1964,22 @@ contains
 
     if (phase == 'advertise') then
        call addfld(fldListFr(complnd)%flds, 'Sl_tsrf_elev')   ! surface temperature of glacier (1->glc_nec+1)
-       call addfld(fldListFr(complnd)%flds, 'Sl_topo_elev')   ! surface heights of glacier     (1->glc_nec+1)
-       call addfld(fldListFr(complnd)%flds, 'Flgl_qice_elev') ! glacier ice flux               (1->glc_nec+1)
-
        call addfld(fldListTo(compglc)%flds, 'Sl_tsrf')
-       call addfld(fldListTo(compglc)%flds, 'Sl_topo')
+       call addfld(fldListFr(complnd)%flds, 'Sl_topo_elev')   ! surface heights of glacier     (1->glc_nec+1)
        call addfld(fldListTo(compglc)%flds, 'Flgl_qice')
+       call addfld(fldListFr(complnd)%flds, 'Flgl_qice_elev') ! glacier ice flux               (1->glc_nec+1)
     else
-       if ( fldchk(is_local%wrap%FBImp(complnd,complnd) , 'Flgl_qice_elev', rc=rc) .and. &
-            fldchk(is_local%wrap%FBImp(complnd,complnd) , 'Sl_tsrf_elev'  , rc=rc) .and. &
-            fldchk(is_local%wrap%FBImp(complnd,complnd) , 'Sl_topo_elev'  , rc=rc) .and. &
-            fldchk(is_local%wrap%FBExp(compglc)         , 'Sg_ice_covered', rc=rc) .and. &
-            fldchk(is_local%wrap%FBExp(compglc)         , 'Sg_topo'       , rc=rc) .and. &
-            fldchk(is_local%wrap%FBExp(compglc)         , 'Flgg_hflx'     , rc=rc)) then
-
+       if ( fldchk(is_local%wrap%FBImp(complnd,complnd) , 'Flgl_qice_elev', rc=rc)) then
           ! custom merging will be done here 
-          call addmap(FldListFr(complnd)%flds, 'Flgl_qice_elev', compglc, mapconsf, 'none', lnd2glc_fmap)
-          call addmap(FldListFr(complnd)%flds, 'Sl_tsrf_elev'  , compglc, mapbilnr, 'none', lnd2glc_smap)
-          call addmap(FldListFr(complnd)%flds, 'Sl_topo_elev'  , compglc, mapbilnr, 'none', lnd2glc_smap)
+          call addmap(FldListFr(complnd)%flds, 'Flgl_qice_elev', compglc, mapbilnr, 'lfrac', lnd2glc_smap)
+       end if
+       if ( fldchk(is_local%wrap%FBImp(complnd,complnd) , 'Sl_tsrf_elev'  , rc=rc)) then
+          ! custom merging will be done here 
+          call addmap(FldListFr(complnd)%flds, 'Sl_tsrf_elev', compglc, mapbilnr, 'lfrac', lnd2glc_smap)
+       end if
+       if ( fldchk(is_local%wrap%FBImp(complnd,complnd) , 'Sl_topo_elev'  , rc=rc)) then
+          ! This is needed just for mappingn to glc - but is not sent as a field
+          call addmap(FldListFr(complnd)%flds, 'Sl_topo_elev', compglc, mapbilnr, 'lfrac', lnd2glc_smap)
        end if
     end if
 
