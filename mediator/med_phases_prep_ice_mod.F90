@@ -86,6 +86,27 @@ contains
     call ESMF_GridCompGetInternalState(gcomp, is_local, rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
+
+
+             !HK  Can you check this here?
+             !HK wave_elevation_spectrum is 1D
+             call FB_getFieldByName(is_local%wrap%FBImp(compwav,compice), 'wave_elevation_spectrum' , lfield, rc) 
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             write(6,*)'lrank start wav2ice ',lrank 
+             !HK end
+
+             !HK  Can you check this here?
+             !HK Faxa_dstdry is 2D
+             call FB_getFieldByName(is_local%wrap%FBImp(compatm,compice), 'Faxa_dstdry' , lfield, rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             write(6,*)'lrank Faxa_dstdry atm2ice start ',lrank
+             !HK end
+
+
     !---------------------------------------
     !--- Count the number of fields outside of scalar data, if zero, then return
     !---------------------------------------
