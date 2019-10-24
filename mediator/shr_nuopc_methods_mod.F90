@@ -338,6 +338,7 @@ contains
     use ESMF , only : ESMF_State, ESMF_Mesh, ESMF_StaggerLoc, ESMF_MeshLoc
     use ESMF , only : ESMF_StateGet, ESMF_FieldGet, ESMF_FieldBundleAdd, ESMF_FieldCreate
     use ESMF , only : ESMF_TYPEKIND_R8, ESMF_FIELDSTATUS_EMPTY, ESMF_AttributeGet
+    use ESMF , only : ESMF_FieldGet !HK
 
     ! input/output variables
     type(ESMF_FieldBundle), intent(inout)        :: FBout            ! output field bundle 
@@ -367,6 +368,8 @@ contains
     logical                :: isPresent
     character(ESMF_MAXSTR), allocatable :: lfieldNameList(:)
     character(len=*), parameter :: subname='(shr_nuopc_methods_FB_init)'
+    !HK debugging
+    integer :: lrank, hUbound(1), hLbound(1)
     ! ----------------------------------------------
 
     if (dbug_flag > 10) then
@@ -554,11 +557,21 @@ contains
                 if (chkerr(rc,__LINE__,u_FILE_u)) return
              end if
 
+if (trim(lfieldnamelist(n)) == 'wave_elevation_spectrum') then
+  print*, 'debugging if statement'
+endif
+
              ! Determine ungridded lower and upper bounds for lfield
-             ungriddedCount=0  ! initialize in case it was not set
+             ungriddedCount=0 ! initialize in case it was not set
              call ESMF_AttributeGet(lfield, name="UngriddedLBound", convention="NUOPC", &
                   purpose="Instance", itemCount=ungriddedCount,  isPresent=isPresent, rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
+
+!HK FBImpwav_ice fieldNameList from STflds
+             call ESMF_FieldGet(lfield, rank=lrank, ungriddedUBound=hUbound,ungriddedLBound=hLbound,  rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             write(6,*)'HK STflds ', trim(lfieldnamelist(n)), ungriddedCount,":",ungriddedCount, hLbound, hUbound, present(FBFlds), present(STflds)
+
 
              ! Create the field on a lmesh
              if (ungriddedCount > 0) then
@@ -571,6 +584,7 @@ contains
 
                 call ESMF_AttributeGet(lfield, name="GridToFieldMap", convention="NUOPC", &
                      purpose="Instance", itemCount=gridToFieldMapCount, rc=rc)
+
                 if (chkerr(rc,__LINE__,u_FILE_u)) return
                 allocate(gridToFieldMap(gridToFieldMapCount))
                 call ESMF_AttributeGet(lfield, name="GridToFieldMap", convention="NUOPC", &
