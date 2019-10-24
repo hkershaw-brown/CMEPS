@@ -1570,6 +1570,7 @@ contains
           call addfld(fldListFr(compwav)%flds, trim(fldname))
           call addfld(fldListTo(compocn)%flds, trim(fldname))
        else
+          ! fldchk Determines if field with fldname is in input field bundle
           if ( fldchk(is_local%wrap%FBExp(compocn)         , trim(fldname), rc=rc) .and. &
                fldchk(is_local%wrap%FBImp(compwav, compwav), trim(fldname), rc=rc)) then
              call addmap(fldListFr(compwav)%flds, trim(fldname), compocn,  mapbilnr, 'one', wav2ocn_smap)
@@ -1604,7 +1605,7 @@ contains
     ! to ice: dust dry deposition flux (size 2) from atm
     ! to ice: dust dry deposition flux (size 3) from atm
     ! to ice: dust dry deposition flux (size 4) from atm
-    ! to ice: wave elevation spectrum from wave
+    ! to ice: wave elevation spectrum (size 2) from wave 
     ! ---------------------------------------------------------------------
     allocate(flds(9))
     flds = (/'Faxa_lwdn  '    , 'Faxa_swndr '   , 'Faxa_swvdr '   , 'Faxa_swndf ' , 'Faxa_swvdf ', &
@@ -1807,8 +1808,8 @@ contains
     else 
        if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
             fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then 
-          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapfcopy, 'unset', 'unset') !HK mapbilnr, one?
-          !call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
+          !call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapfcopy, 'unset', 'unset') !HK mapbilnr, one?
+          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
           call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
                mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
        end if
