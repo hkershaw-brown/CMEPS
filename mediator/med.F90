@@ -768,6 +768,7 @@ contains
       use ESMF                  , only : ESMF_LogMsg_Warning
       use ESMF                  , only : ESMF_FieldStatus_Empty, ESMF_FieldStatus_Complete, ESMF_FieldStatus_GridSet
       use ESMF                  , only : ESMF_GeomType_Mesh, ESMF_MeshGet, ESMF_Mesh, ESMF_MeshEmptyCreate
+      use ESMF                  , only : ESMF_FieldGet !HK
 
       type(ESMF_State)   , intent(inout) :: State
       character(len=*)   , intent(in)    :: string
@@ -778,6 +779,7 @@ contains
       type(ESMF_Grid)               :: grid
       type(ESMF_Mesh)               :: mesh, newmesh
       integer                       :: localDeCount
+      integer                       :: lrank !HK debugging
 
       type(ESMF_DistGrid)           :: distgrid
       type(ESMF_DistGrid)           :: nodaldistgrid, newnodaldistgrid
@@ -1052,6 +1054,7 @@ contains
                      if (dbug_flag > 1) then
                         call Field_GeomPrint(field,trim(fieldNameList(n1))//'_new',rc)
                         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
                      end if
                   else
                      call ESMF_LogWrite(trim(subname)//trim(string)//": NOT replacing grid for field: "//&
@@ -1376,6 +1379,8 @@ contains
     use ESMF                    , only : ESMF_GridCompGet, ESMF_AttributeGet, ESMF_ClockGet, ESMF_Success
     use ESMF                    , only : ESMF_StateIsCreated, ESMF_StateGet, ESMF_FieldBundleIsCreated, ESMF_LogFlush
     use ESMF                    , only : ESMF_VM
+    use ESMF                    , only : ESMF_FieldGet !,ESMF_StateGetField  !HK debugging
+    use shr_nuopc_methods_mod , only : FB_getFieldByName => shr_nuopc_methods_FB_getFieldByName !HK deubgging
     use NUOPC                   , only : NUOPC_CompAttributeSet, NUOPC_IsAtTime, NUOPC_SetAttribute
     use NUOPC                   , only : NUOPC_CompAttributeGet
     use med_internalstate_mod   , only : InternalState
@@ -1430,6 +1435,9 @@ use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Fie
     real(r8)                           :: real_nx, real_ny
     character(len=CX)                  :: msgString
     character(len=*), parameter        :: subname='(module_MED:DataInitialize)'
+    !HK debugging
+    type(ESMF_Field)      :: lfield
+    integer               :: lrank
     !-----------------------------------------------------------
 
     call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO)
@@ -1597,13 +1605,28 @@ use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Fie
 
                if (mastertask) write(logunit,*) subname,' initializing FBs for '//&
                     trim(compname(n1))//'_'//trim(compname(n2))
+!HK start
+! NStateImp is ESMF_State
+print*, 'HK initializing FBs ', trim(compname(n1)), trim(compname(n2)) 
 
+               !HK FBimp wave_elevation_spectrum
                call FB_init(is_local%wrap%FBImp(n1,n2), is_local%wrap%flds_scalar_name, &
                     STgeom=is_local%wrap%NStateImp(n2), &
                     STflds=is_local%wrap%NStateImp(n1), &
                     name='FBImp'//trim(compname(n1))//'_'//trim(compname(n2)), rc=rc)
                if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+if (trim(compname(n1))=='wav' .and. trim(compname(n2))=='ice') then 
+
+             call FB_getFieldByName(is_local%wrap%FBImp(n1,n2), 'wave_elevation_spectrum' , lfield, rc)  
+             !call FB_getFieldByName(is_local%wrap%NStateImp(n1), 'wave_elevation_spectrum' , lfield, rc)  
+             !call ESMF_StateGetField(is_local%wrap%NStateImp(n1), 'wave_elevation_spectrum' , lfield, rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+             write(6,*)'lrank after FBInit ',lrank
+endif
+!HK end
                call FB_init(is_local%wrap%FBImpAccum(n1,n2), is_local%wrap%flds_scalar_name, &
                     STgeom=is_local%wrap%NStateImp(n2), &
                     STflds=is_local%wrap%NStateImp(n1), &
