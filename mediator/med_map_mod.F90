@@ -611,28 +611,6 @@ contains
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
     call memcheck(subname, 1, mastertask)
 
-if (trim(compname(destcomp))=='ice' .and. trim(compname(srccomp))=='wav') then 
-
-
-             call FB_getFieldByName(FBSrc, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank before reset: srcfield ',lrank
-             !HK end    
-
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is
-             !causing the problem in the input wave field. 
-             call FB_getFieldByName(FBDst, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank before reset: dstfield ',lrank
-             !HK end   
-
-endif
-
-
 #ifdef DEBUG
     checkflag = .true.
 #endif
@@ -651,51 +629,9 @@ endif
     ! First - reset the field bundle on the destination grid to zero
     !---------------------------------------
 
-if (trim(compname(destcomp))=='ice' .and. trim(compname(srccomp))=='wav') then 
-
-
-             call FB_getFieldByName(FBSrc, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank before reset: srcfield ',lrank
-             !HK end    
-
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is
-             !causing the problem in the input wave field. 
-             call FB_getFieldByName(FBDst, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank before reset: dstfield ',lrank
-             !HK end   
-
-endif
-
-
     call FB_reset(FBDst, value=czero, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-if (trim(compname(destcomp))=='ice' .and. trim(compname(srccomp))=='wav') then 
-
-
-             call FB_getFieldByName(FBSrc, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank after reset: srcfield ',lrank
-             !HK end    
-
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is
-             !causing the problem in the input wave field. 
-             call FB_getFieldByName(FBDst, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank after reset: dstfield ',lrank
-             !HK end   
-
-endif
     !---------------------------------------
     ! Loop over all fields in the source field bundle and map them to
     ! the destination field bundle accordingly
@@ -709,7 +645,6 @@ endif
     do n = 1,size(fldsSrc)
        ! Determine if field is a scalar - and if so go to next iternation
        fldname  = fldsSrc(n)%shortname
-print*, 'HK fldname', trim(fldname)
        if (fldname == flds_scalar_name) CYCLE
 
        ! Determine if there is a map index and if its zero go to next iteration
@@ -806,30 +741,6 @@ print*, 'HK fldname', trim(fldname)
        call ESMF_FieldBundleGet(FBDst, fieldName=trim(fldname), field=dstfield, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-print*, 'HK ', trim(compname(destcomp)), trim(compname(srccomp))
-
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is
-             !causing the problem in the input wave field. 
-if (trim(compname(destcomp))=='ice' .and. trim(compname(srccomp))=='wav') then
-
-
-             call FB_getFieldByName(FBSrc, 'wave_elevation_spectrum' , lfield, rc) 
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank srcfield ',lrank
-             !HK end    
-
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is
-             !causing the problem in the input wave field. 
-             call FB_getFieldByName(FBDst, 'wave_elevation_spectrum' , lfield, rc)  
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank dstfield ',lrank
-             !HK end   
-
-endif
        ! -------------------
        ! Do the mapping
        ! -------------------
@@ -1121,8 +1032,6 @@ endif
 
     call ESMF_FieldGet(dstfield, rank=lrank, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-
-print*, 'HK norm_field_dest ', trim(fldname), lrank
 
     if (lrank == 1) then
        call ESMF_FieldGet(dstfield, farrayPtr=data1d, rc=rc)

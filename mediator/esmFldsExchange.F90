@@ -74,6 +74,7 @@ contains
     character(len=64), allocatable :: flds(:)
     character(len=64), allocatable :: suffix(:)
     character(len=*) , parameter   :: subname='(esmFldsExchange)'
+    character(len=2)               :: fvalue
     !--------------------------------------
 
     rc = ESMF_SUCCESS
@@ -1802,18 +1803,20 @@ contains
     ! ---------------------------------------------------------------------
     ! to ice: wave_elevation_spectrum from wav
     ! ---------------------------------------------------------------------
-    if (phase == 'advertise') then 
-       call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum')
-       call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum')
-    else 
-       if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum', rc=rc) .and. &
-            fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum', rc=rc)) then 
-          !call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice,  mapfcopy, 'unset', 'unset') !HK mapbilnr, one?
-          call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum', compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
-          call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum', mrg_from1=compwav, &
-               mrg_fld1='wave_elevation_spectrum', mrg_type1='copy')
+    do n = 1,25 
+       write(fvalue,'(I2)') n
+       if (phase == 'advertise') then 
+          call addfld(fldListFr(compwav)%flds, 'wave_elevation_spectrum'//trim(adjustl(fvalue)))
+          call addfld(fldListTo(compice)%flds, 'wave_elevation_spectrum'//trim(adjustl(fvalue)))
+       else 
+          if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wave_elevation_spectrum'//trim(adjustl(fvalue)), rc=rc) .and. &
+               fldchk(is_local%wrap%FBExp(compice)         , 'wave_elevation_spectrum'//trim(adjustl(fvalue)), rc=rc)) then 
+             call addmap(fldListFr(compwav)%flds, 'wave_elevation_spectrum'//trim(adjustl(fvalue)), compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
+             call addmrg(fldListTo(compice)%flds, 'wave_elevation_spectrum'//trim(adjustl(fvalue)), mrg_from1=compwav, &
+                  mrg_fld1='wave_elevation_spectrum'//trim(adjustl(fvalue)), mrg_type1='copy')
+          end if
        end if
-    end if
+    enddo
 
     ! ---------------------------------------------------------------------
     ! to ice: frozen runoff from rof and glc

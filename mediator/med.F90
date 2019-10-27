@@ -1605,28 +1605,13 @@ use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Fie
 
                if (mastertask) write(logunit,*) subname,' initializing FBs for '//&
                     trim(compname(n1))//'_'//trim(compname(n2))
-!HK start
-! NStateImp is ESMF_State
-print*, 'HK initializing FBs ', trim(compname(n1)), trim(compname(n2)) 
 
-               !HK FBimp wave_elevation_spectrum
                call FB_init(is_local%wrap%FBImp(n1,n2), is_local%wrap%flds_scalar_name, &
                     STgeom=is_local%wrap%NStateImp(n2), &
                     STflds=is_local%wrap%NStateImp(n1), &
                     name='FBImp'//trim(compname(n1))//'_'//trim(compname(n2)), rc=rc)
                if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-if (trim(compname(n1))=='wav' .and. trim(compname(n2))=='ice') then 
-
-             call FB_getFieldByName(is_local%wrap%FBImp(n1,n2), 'wave_elevation_spectrum' , lfield, rc)  
-             !call FB_getFieldByName(is_local%wrap%NStateImp(n1), 'wave_elevation_spectrum' , lfield, rc)  
-             !call ESMF_StateGetField(is_local%wrap%NStateImp(n1), 'wave_elevation_spectrum' , lfield, rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank after FBInit ',lrank
-endif
-!HK end
                call FB_init(is_local%wrap%FBImpAccum(n1,n2), is_local%wrap%flds_scalar_name, &
                     STgeom=is_local%wrap%NStateImp(n2), &
                     STflds=is_local%wrap%NStateImp(n1), &

@@ -138,13 +138,11 @@ contains
                                return
                             endif
                             if (FB_FldChk(FBMed1, trim(merge_field), rc=rc)) then
-call FB_Field_diagnose(FBMed1, trim(merge_field),'FBMed1 taco', rc)
                                call med_merge_auto_field(trim(merge_type), &
                                     FBOut, fldname, FB=FBMed1, FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                                if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
                             else if (FB_FldChk(FBMed2, trim(merge_field), rc=rc)) then
-call FB_Field_diagnose(FBMed2, trim(merge_field),'FBMed2 taco', rc)
                                call med_merge_auto_field(trim(merge_type), &
                                     FBOut, fldname, FB=FBMed2, FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                                if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -164,7 +162,6 @@ call FB_Field_diagnose(FBMed2, trim(merge_field),'FBMed2 taco', rc)
                                return
                             endif
                             if (FB_FldChk(FBMed1, trim(merge_field), rc=rc)) then
-call FB_Field_diagnose(FBMed1, trim(merge_field),'FBMed1 second taco', rc)
                                call med_merge_auto_field(trim(merge_type), &
                                     FBOut, fldname, FB=FBMed1, FBFld=merge_field, FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
                                if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -179,8 +176,6 @@ call FB_Field_diagnose(FBMed1, trim(merge_field),'FBMed1 second taco', rc)
 
                       else if (ESMF_FieldBundleIsCreated(FBImp(compsrc), rc=rc)) then
                          if (FB_FldChk(FBImp(compsrc), trim(merge_field), rc=rc)) then
-!HK wave_elevation_spectrum is 1D here
-call FB_Field_diagnose(FBImp(compsrc), trim(merge_field),'FBImp taco', rc)
                             call med_merge_auto_field(trim(merge_type), &
                                  FBOut, fldname, FB=FBImp(compsrc), FBFld=merge_field, &
                                  FBw=FBfrac, fldw=trim(merge_fracname), rc=rc)
@@ -281,7 +276,6 @@ call FB_Field_diagnose(FBout, trim(FBoutfld),'output taco', rc)
        ! wave_elevation_spectrum is rank 2 for outputfield
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_output, &
             gridToFieldMap=gridToFieldMap_output, rc=rc)
-       print*, 'hello lrank = 2, FBout ', trim(FBoutfld)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
        call ESMF_FieldGet(lfield, farrayPtr=dp2, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
@@ -293,12 +287,9 @@ call FB_Field_diagnose(FBout, trim(FBoutfld),'output taco', rc)
     call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     if (lrank == 1) then
-       !HK bug: wave_elevation_spectrum is rank 1 for inputfield
-       print*, 'hello lrank = 1, FBfld ', trim(FBfld)
        call ESMF_FieldGet(lfield, farrayPtr=dpf1, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
     else if (lrank == 2) then
-       print*, 'hello lrank = 2, FBfld ', trim(FBfld)
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_input, &
             gridToFieldMap=gridToFieldMap_input, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return

@@ -82,30 +82,8 @@ contains
     !---------------------------------------
 
     nullify(is_local%wrap)
-    !HK is this were wave_elevation_spectrum is 1D?
     call ESMF_GridCompGetInternalState(gcomp, is_local, rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-
-
-
-             !HK  Can you check this here?
-             !HK wave_elevation_spectrum is 1D
-             call FB_getFieldByName(is_local%wrap%FBImp(compwav,compice), 'wave_elevation_spectrum' , lfield, rc) 
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank start wav2ice ',lrank 
-             !HK end
-
-             !HK  Can you check this here?
-             !HK Faxa_dstdry is 2D
-             call FB_getFieldByName(is_local%wrap%FBImp(compatm,compice), 'Faxa_dstdry' , lfield, rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank Faxa_dstdry atm2ice start ',lrank
-             !HK end
-
 
     !---------------------------------------
     !--- Count the number of fields outside of scalar data, if zero, then return
@@ -118,14 +96,6 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
     if (ncnt > 0) then
-
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is causing the problem in the input wave field. 
-             call FB_getFieldByName(is_local%wrap%FBImp(compwav,compwav), 'wave_elevation_spectrum' , lfield, rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank before mapping is ',lrank
-             !HK end             
 
        !---------------------------------------
        !--- map to create FBImp(:,compice)
@@ -147,21 +117,9 @@ contains
        enddo
 
 
-             !HK Aim: verify that the mapping wav->ice for the wave spectrum is causing the problem in the input wave field. 
-             call FB_getFieldByName(is_local%wrap%FBImp(compwav,compice), 'wave_elevation_spectrum' , lfield, rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             call ESMF_FieldGet(lfield, rank=lrank, rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'lrank after mapping is ',lrank 
-             !HK end
-
        !---------------------------------------
        !--- auto merges to create FBExp(compice)
        !---------------------------------------
-print*, 'HK before med_merge_auto'
-!HK FBImp has wave_elevation_spectrum as 1D
-! subroutine med_merge_auto(compout_name,      FBOut,                       FBfrac,                         FBImp,                         fldListTo,  rc)
-!call med_merge_auto(trim(compname(compice)), is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), is_local%wrap%FBImp(:,compice), fldListTo(compice), rc=rc)
 
        call med_merge_auto(trim(compname(compice)), &
             is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), &

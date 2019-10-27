@@ -557,9 +557,6 @@ contains
                 if (chkerr(rc,__LINE__,u_FILE_u)) return
              end if
 
-if (trim(lfieldnamelist(n)) == 'wave_elevation_spectrum') then
-  print*, 'debugging if statement'
-endif
 
              ! Determine ungridded lower and upper bounds for lfield
              ungriddedCount=0 ! initialize in case it was not set
