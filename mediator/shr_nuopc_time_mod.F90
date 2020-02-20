@@ -1,6 +1,5 @@
-module med_time_mod
+module shr_nuopc_time_mod
 
-  use med_kind_mod        , only : CX=>SHR_KIND_CX, CS=>SHR_KIND_CS, CL=>SHR_KIND_CL, R8=>SHR_KIND_R8
   use ESMF                , only : ESMF_GridComp, ESMF_GridCompGet, ESMF_GridCompSet
   use ESMF                , only : ESMF_Clock, ESMF_ClockCreate, ESMF_ClockGet, ESMF_ClockSet
   use ESMF                , only : ESMF_ClockAdvance
@@ -17,31 +16,40 @@ module med_time_mod
   use ESMF                , only : operator(<=), operator(>), operator(==)
   use NUOPC               , only : NUOPC_CompAttributeGet
   use med_constants_mod   , only : dbug_flag => med_constants_dbug_flag
-  use med_utils_mod       , only : chkerr => med_utils_ChkErr
+  use shr_nuopc_utils_mod , only : chkerr => shr_nuopc_utils_ChkErr
 
   implicit none
   private    ! default private
 
-  public  :: med_time_clockInit  ! initialize driver clock (assumes default calendar)
-  public  :: med_time_alarmInit  ! initialize an alarm
+  public  :: shr_nuopc_time_clockInit  ! initialize driver clock (assumes default calendar)
+  public  :: shr_nuopc_time_alarmInit  ! initialize an alarm
+  public  :: shr_nuopc_time_set_component_stop_alarm
 
-  private :: med_time_timeInit
-  private :: med_time_date2ymd
+  private :: shr_nuopc_time_timeInit
+  private :: shr_nuopc_time_date2ymd
 
   ! Clock and alarm options
   character(len=*), private, parameter :: &
        optNONE           = "none"      , &
        optNever          = "never"     , &
        optNSteps         = "nsteps"    , &
+       optNStep          = "nstep"     , &
        optNSeconds       = "nseconds"  , &
+       optNSecond        = "nsecond"   , &
        optNMinutes       = "nminutes"  , &
+       optNMinute        = "nminute"   , &
        optNHours         = "nhours"    , &
+       optNHour          = "nhour"     , &
        optNDays          = "ndays"     , &
+       optNDay           = "nday"      , &
        optNMonths        = "nmonths"   , &
+       optNMonth         = "nmonth"    , &
        optNYears         = "nyears"    , &
+       optNYear          = "nyear"     , &
        optMonthly        = "monthly"   , &
        optYearly         = "yearly"    , &
        optDate           = "date"      , &
+       optIfdays0        = "ifdays0"   , &
        optGLCCouplingPeriod = "glc_coupling_period"
 
   ! Module data
@@ -53,7 +61,10 @@ module med_time_mod
 contains
 !===============================================================================
 
-  subroutine med_time_clockInit(ensemble_driver, esmdriver, logunit, rc)
+  subroutine shr_nuopc_time_clockInit(ensemble_driver, esmdriver, logunit, rc)
+
+    use med_constants_mod     , only : CL, CS
+    use shr_cal_mod           , only : shr_cal_noleap, shr_cal_gregorian, shr_cal_calendarname
 
     ! input/output variables
     type(ESMF_GridComp)  :: ensemble_driver, esmdriver
@@ -97,7 +108,7 @@ contains
     character(len=CL)       :: restart_pfile
     character(len=CL)       :: cvalue
     integer                 :: dtime_drv           ! time-step to use
-    integer                 :: yr, mon, day, sec   ! Year, month, day, secs as integers
+    integer                 :: yr, mon, day        ! Year, month, day as integers
     integer                 :: localPet            ! local pet in esm domain
     logical                 :: mastertask          ! true if mastertask in esm domain
     integer                 :: unitn               ! unit number
@@ -106,7 +117,7 @@ contains
     character(CS)           :: inst_suffix
     integer                 :: tmp(6)              ! Array for Broadcast
     logical                 :: isPresent
-    character(len=*), parameter :: subname = '(med_time_clockInit): '
+    character(len=*), parameter :: subname = '(shr_nuopc_time_clockInit): '
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -125,7 +136,7 @@ contains
     mastertask = localPet == 0
 
     !---------------------------------------------------------------------------
-    ! Determine start time, reference time and current time
+    ! Determine clock start time, reference time and current time
     !---------------------------------------------------------------------------
 
     curr_ymd = 0
@@ -199,7 +210,7 @@ contains
           endif
        endif
        if (mastertask) then
-          call med_time_read_restart(restart_file, &
+          call shr_nuopc_time_read_restart(restart_file, &
                start_ymd, start_tod, ref_ymd, ref_tod, curr_ymd, curr_tod, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        endif
@@ -230,11 +241,10 @@ contains
 
     ! Determine start time (THE FOLLOWING ASSUMES THAT THE DEFAULT CALENDAR IS SET in the driver)
 
-    call med_time_date2ymd(start_ymd, yr, mon, day)
+    call shr_nuopc_time_date2ymd(start_ymd, yr, mon, day)
     call ESMF_TimeSet( StartTime, yy=yr, mm=mon, dd=day, s=start_tod, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    if(mastertask) then
+    if(mastertask .or. dbug_flag > 2) then
        write(tmpstr,'(i10)') start_ymd
        call ESMF_LogWrite(trim(subname)//': driver start_ymd: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver start_ymd: '// trim(tmpstr)
@@ -244,11 +254,11 @@ contains
     endif
 
     ! Determine reference time
-    call med_time_date2ymd(ref_ymd, yr, mon, day)
+    call shr_nuopc_time_date2ymd(ref_ymd, yr, mon, day)
     call ESMF_TimeSet( RefTime, yy=yr, mm=mon, dd=day, s=ref_tod, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if(mastertask) then
+    if(mastertask .or. dbug_flag > 2) then
        write(tmpstr,'(i10)') ref_ymd
        call ESMF_LogWrite(trim(subname)//': driver ref_ymd: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver ref_ymd: '// trim(tmpstr)
@@ -256,13 +266,11 @@ contains
        call ESMF_LogWrite(trim(subname)//': driver ref_tod: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver ref_tod: '// trim(tmpstr)
     endif
-
     ! Determine current time
-    call med_time_date2ymd(curr_ymd, yr, mon, day)
+    call shr_nuopc_time_date2ymd(curr_ymd, yr, mon, day)
     call ESMF_TimeSet( CurrTime, yy=yr, mm=mon, dd=day, s=curr_tod, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    if(mastertask) then
+    if(mastertask .or. dbug_flag > 2) then
        write(tmpstr,'(i10)') curr_ymd
        call ESMF_LogWrite(trim(subname)//': driver curr_ymd: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver curr_ymd: '// trim(tmpstr)
@@ -270,7 +278,6 @@ contains
        call ESMF_LogWrite(trim(subname)//': driver curr_tod: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver curr_tod: '// trim(tmpstr)
     endif
-
     !---------------------------------------------------------------------------
     ! Determine driver clock timestep
     !---------------------------------------------------------------------------
@@ -311,10 +318,18 @@ contains
     ! call NUOPC_CompAttributeGet(esmdriver, name="esp_cpl_dt", value=cvalue, rc=rc)
     ! if (ChkErr(rc,__LINE__,u_FILE_u)) return
     ! read(cvalue,*) esp_cpl_dt
-    ! dtime_drv = min((/atm_cpl_dt, lnd_cpl_dt, ocn_cpl_dt, ice_cpl_dt, glc_cpl_dt, rof_cpl_dt, wav_cpl_dt, esp_cpl_dt/))
+    esp_cpl_dt = 9999
 
-    dtime_drv = minval((/atm_cpl_dt, lnd_cpl_dt, ocn_cpl_dt, ice_cpl_dt, glc_cpl_dt, rof_cpl_dt, wav_cpl_dt/))
-    if(mastertask) then
+    dtime_drv = 9999
+    dtime_drv = min(dtime_drv, atm_cpl_dt)
+    dtime_drv = min(dtime_drv, lnd_cpl_dt)
+    dtime_drv = min(dtime_drv, ocn_cpl_dt)
+    dtime_drv = min(dtime_drv, ice_cpl_dt)
+    dtime_drv = min(dtime_drv, glc_cpl_dt)
+    dtime_drv = min(dtime_drv, rof_cpl_dt)
+    dtime_drv = min(dtime_drv, wav_cpl_dt)
+    dtime_drv = min(dtime_drv, esp_cpl_dt)
+    if(mastertask .or. dbug_flag > 2) then
        write(tmpstr,'(i10)') dtime_drv
        call ESMF_LogWrite(trim(subname)//': driver time interval is : '// trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
        write(logunit,*)   trim(subname)//': driver time interval is : '// trim(tmpstr)
@@ -344,7 +359,10 @@ contains
     call ESMF_GridCompSet(esmdriver, clock=clock, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+    !-------------------------------
     ! Set driver clock stop time
+    !-------------------------------
+
     call NUOPC_CompAttributeGet(esmdriver, name="stop_option", value=stop_option, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call NUOPC_CompAttributeGet(esmdriver, name="stop_n", value=cvalue, rc=rc)
@@ -360,8 +378,7 @@ contains
        stop_ymd = 99990101
        stop_tod = 0
     endif
-
-    if (mastertask) then
+    if(mastertask .or. dbug_flag > 2) then
        write(tmpstr,'(i10)') stop_ymd
        call ESMF_LogWrite(trim(subname)//': driver stop_ymd: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver stop_ymd: '// trim(tmpstr)
@@ -369,8 +386,7 @@ contains
        call ESMF_LogWrite(trim(subname)//': driver stop_tod: '// trim(tmpstr), ESMF_LOGMSG_INFO)
        write(logunit,*)   trim(subname)//': driver stop_tod: '// trim(tmpstr)
     endif
-
-    call med_time_alarmInit(clock, &
+    call shr_nuopc_time_alarmInit(clock, &
          alarm   = alarm_stop,           &
          option  = stop_option,          &
          opt_n   = stop_n,               &
@@ -380,7 +396,7 @@ contains
          alarmname = 'alarm_stop', rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call med_time_alarmInit(clock, &
+    call shr_nuopc_time_alarmInit(clock, &
          alarm     = alarm_datestop,     &
          option    = optDate,            &
          opt_ymd   = stop_ymd,           &
@@ -403,10 +419,7 @@ contains
     call ESMF_ClockSet(clock, StopTime=StopTime, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    !---------------------------------------------------------------------------
     ! Create the ensemble driver clock
-    !---------------------------------------------------------------------------
-
     TimeStep = StopTime-ClockTime
     clock = ESMF_ClockCreate(TimeStep, ClockTime, StopTime=StopTime, &
          refTime=RefTime, name='ESMF ensemble Driver Clock', rc=rc)
@@ -414,18 +427,61 @@ contains
     call ESMF_GridCompSet(ensemble_driver, clock=clock, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (dbug_flag > 5) then
-      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO)
-    endif
 
- end subroutine med_time_clockInit
+
+ end subroutine shr_nuopc_time_clockInit
+
+ subroutine shr_nuopc_time_set_component_stop_alarm(gcomp, rc)
+   use ESMF, only : ESMF_GridComp, ESMF_Alarm, ESMF_Clock, ESMF_ClockGet
+   use ESMF, only : ESMF_AlarmSet
+   use NUOPC, only : NUOPC_CompAttributeGet
+   use NUOPC_Model, only : NUOPC_ModelGet
+   type(ESMF_gridcomp) :: gcomp
+
+   character(len=256)       :: stop_option    ! Stop option units
+   integer                  :: stop_n         ! Number until stop interval
+   integer                  :: stop_ymd       ! Stop date (YYYYMMDD)
+   type(ESMF_ALARM)         :: stop_alarm
+   character(len=256)       :: cvalue
+   type(ESMF_Clock)         :: mclock
+   type(ESMF_Time)          :: mCurrTime
+   integer                  :: rc
+   !----------------
+   ! Stop alarm
+   !----------------
+   call NUOPC_CompAttributeGet(gcomp, name="stop_option", value=stop_option, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call NUOPC_ModelGet(gcomp, modelClock=mclock, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call ESMF_ClockGet(mclock, CurrTime=mCurrTime, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call NUOPC_CompAttributeGet(gcomp, name="stop_n", value=cvalue, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   read(cvalue,*) stop_n
+
+   call NUOPC_CompAttributeGet(gcomp, name="stop_ymd", value=cvalue, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   read(cvalue,*) stop_ymd
+   call shr_nuopc_time_alarmInit(mclock, stop_alarm, stop_option, &
+        opt_n   = stop_n,           &
+        opt_ymd = stop_ymd,         &
+        RefTime = mcurrTime,           &
+        alarmname = 'alarm_stop', rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+   call ESMF_AlarmSet(stop_alarm, clock=mclock, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+ end subroutine shr_nuopc_time_set_component_stop_alarm
 
 !===============================================================================
 
-  subroutine med_time_alarmInit( clock, alarm, option, &
+  subroutine shr_nuopc_time_alarmInit( clock, alarm, option, &
        opt_n, opt_ymd, opt_tod, RefTime, alarmname, rc)
 
-    ! Setup an alarm in a clock
+    ! !DESCRIPTION: Setup an alarm in a clock
     ! Notes: The ringtime sent to AlarmCreate MUST be the next alarm
     ! time.  If you send an arbitrary but proper ringtime from the
     ! past and the ring interval, the alarm will always go off on the
@@ -458,7 +514,7 @@ contains
     type(ESMF_Time)         :: NextAlarm        ! Next restart alarm time
     type(ESMF_TimeInterval) :: AlarmInterval    ! Alarm interval
     integer                 :: sec
-    character(len=*), parameter :: subname = '(med_time_alarmInit): '
+    character(len=*), parameter :: subname = '(shr_nuopc_time_alarmInit): '
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -486,37 +542,6 @@ contains
     ! Get calendar from clock
     call ESMF_ClockGet(clock, calendar=cal)
 
-    ! Error checks
-    if (trim(option) == optdate) then
-       if (.not. present(opt_ymd)) then
-          call ESMF_LogWrite(trim(subname)//trim(option)//' requires opt_ymd', ESMF_LOGMSG_INFO)
-          rc = ESMF_FAILURE
-          return
-       end if
-       if (lymd < 0 .or. ltod < 0) then
-          call ESMF_LogWrite(subname//trim(option)//'opt_ymd, opt_tod invalid', ESMF_LOGMSG_INFO)
-          rc = ESMF_FAILURE
-          return
-       end if
-    else if (trim(option) == optNSteps   .or. &
-             trim(option) == optNSeconds .or. &
-             trim(option) == optNMinutes .or. &
-             trim(option) == optNHours   .or. &
-             trim(option) == optNDays    .or. &
-             trim(option) == optNMonths  .or. &
-             trim(option) == optNYears) then
-       if (.not.present(opt_n)) then
-          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
-          rc = ESMF_FAILURE
-          return
-       end if
-       if (opt_n <= 0) then
-          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
-          rc = ESMF_FAILURE
-          return
-       end if
-    end if
-
     ! Determine inputs for call to create alarm
     selectcase (trim(option))
 
@@ -535,19 +560,103 @@ contains
        update_nextalarm  = .false.
 
     case (optDate)
+       if (.not. present(opt_ymd)) then
+          call ESMF_LogWrite(trim(subname)//trim(option)//' requires opt_ymd', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (lymd < 0 .or. ltod < 0) then
+          call ESMF_LogWrite(subname//trim(option)//'opt_ymd, opt_tod invalid', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_TimeIntervalSet(AlarmInterval, yy=9999, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       call med_time_timeInit(NextAlarm, lymd, cal, tod=ltod, desc="optDate")
+       call shr_nuopc_time_timeInit(NextAlarm, lymd, cal, tod=ltod, desc="optDate")
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        update_nextalarm  = .false.
 
+    case (optIfdays0)
+       if (.not. present(opt_ymd)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_ymd', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0)  then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, mm=1, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       call ESMF_TimeSet( NextAlarm, yy=cyy, mm=cmm, dd=opt_n, s=0, calendar=cal, rc=rc )
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       update_nextalarm  = .true.
+
     case (optNSteps)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_ClockGet(clock, TimeStep=AlarmInterval, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNStep)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0)  then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_ClockGet(clock, TimeStep=AlarmInterval, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
        update_nextalarm  = .true.
 
     case (optNSeconds)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, s=1, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNSecond)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=1, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
@@ -555,22 +664,126 @@ contains
 
     case (optNMinutes)
        call ESMF_TimeIntervalSet(AlarmInterval, s=60, rc=rc)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNMinute)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, s=60, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
        update_nextalarm  = .true.
 
     case (optNHours)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, s=3600, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNHour)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=3600, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
        update_nextalarm  = .true.
 
     case (optNDays)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, d=1, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNDay)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_TimeIntervalSet(AlarmInterval, d=1, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
        update_nextalarm  = .true.
 
     case (optNMonths)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, mm=1, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNMonth)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_TimeIntervalSet(AlarmInterval, mm=1, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
@@ -584,6 +797,32 @@ contains
        update_nextalarm  = .true.
 
     case (optNYears)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       call ESMF_TimeIntervalSet(AlarmInterval, yy=1, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       AlarmInterval = AlarmInterval * opt_n
+       update_nextalarm  = .true.
+
+    case (optNYear)
+       if (.not.present(opt_n)) then
+          call ESMF_LogWrite(subname//trim(option)//' requires opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
+       if (opt_n <= 0) then
+          call ESMF_LogWrite(subname//trim(option)//' invalid opt_n', ESMF_LOGMSG_INFO)
+          rc = ESMF_FAILURE
+          return
+       end if
        call ESMF_TimeIntervalSet(AlarmInterval, yy=1, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
@@ -621,11 +860,11 @@ contains
          ringInterval=AlarmInterval, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-  end subroutine med_time_alarmInit
+  end subroutine shr_nuopc_time_alarmInit
 
   !===============================================================================
 
-  subroutine med_time_timeInit( Time, ymd, cal, tod, desc, logunit )
+  subroutine shr_nuopc_time_timeInit( Time, ymd, cal, tod, desc, logunit )
 
     !  Create the ESMF_Time object corresponding to the given input time, given in
     !  YMD (Year Month Day) and TOD (Time-of-day) format.
@@ -644,7 +883,7 @@ contains
     integer                     :: ltod         ! local tod
     character(len=256)          :: ldesc        ! local desc
     integer                     :: rc           ! return code
-    character(len=*), parameter :: subname = '(med_time_m_ETimeInit) '
+    character(len=*), parameter :: subname = '(shr_nuopc_time_m_ETimeInit) '
     !-------------------------------------------------------------------------------
 
     ltod = 0
@@ -662,16 +901,16 @@ contains
        return
     end if
 
-    call med_time_date2ymd (ymd,yr,mon,day)
+    call shr_nuopc_time_date2ymd (ymd,yr,mon,day)
 
     call ESMF_TimeSet( Time, yy=yr, mm=mon, dd=day, s=ltod, calendar=cal, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-  end subroutine med_time_timeInit
+  end subroutine shr_nuopc_time_timeInit
 
   !===============================================================================
 
-  subroutine med_time_date2ymd (date, year, month, day)
+  subroutine shr_nuopc_time_date2ymd (date, year, month, day)
 
     ! input/output variables
     integer, intent(in)  :: date             ! coded-date (yyyymmdd)
@@ -679,7 +918,7 @@ contains
 
     ! local variables
     integer :: tdate   ! temporary date
-    character(*),parameter :: subName = "(med_time_date2ymd)"
+    character(*),parameter :: subName = "(shr_nuopc_time_date2ymd)"
     !-------------------------------------------------------------------------------
 
     tdate = abs(date)
@@ -690,16 +929,17 @@ contains
     month = int( mod(tdate,10000)/  100)
     day = mod(tdate,  100)
 
-  end subroutine med_time_date2ymd
+  end subroutine shr_nuopc_time_date2ymd
 
   !===============================================================================
 
-  subroutine med_time_read_restart(restart_file, &
+  subroutine shr_nuopc_time_read_restart(restart_file, &
        start_ymd, start_tod, ref_ymd, ref_tod, curr_ymd, curr_tod, rc)
 
-    use netcdf , only : nf90_open, nf90_nowrite, nf90_noerr
-    use netcdf , only : nf90_inq_varid, nf90_get_var, nf90_close
-    use ESMF   , only : ESMF_LogWrite, ESMF_LOGMSG_INFO
+    use netcdf                , only : nf90_open, nf90_nowrite, nf90_noerr
+    use netcdf                , only : nf90_inq_varid, nf90_get_var, nf90_close
+    use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO
+    use med_constants_mod     , only : CL
 
     ! input/output variables
     character(len=*), intent(in) :: restart_file
@@ -714,7 +954,7 @@ contains
     ! local variables
     integer                 :: status, ncid, varid ! netcdf stuff
     character(CL)           :: tmpstr              ! temporary
-    character(len=*), parameter :: subname = "(med_time_read_restart)"
+    character(len=*), parameter :: subname = "(shr_nuopc_time_read_restart)"
     !----------------------------------------------------------------
 
     ! use netcdf here since it's serial
@@ -817,6 +1057,6 @@ contains
     write(tmpstr,*) trim(subname)//" read curr_tod  = ",curr_tod
     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
-  end subroutine med_time_read_restart
+  end subroutine shr_nuopc_time_read_restart
 
-end module med_time_mod
+end module shr_nuopc_time_mod

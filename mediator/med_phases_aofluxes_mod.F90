@@ -1,17 +1,14 @@
 module med_phases_aofluxes_mod
 
-  use med_kind_mod          , only : CX=>SHR_KIND_CX, CS=>SHR_KIND_CS, CL=>SHR_KIND_CL, R8=>SHR_KIND_R8
-  use med_internalstate_mod , only : InternalState
+  use med_constants_mod     , only : R8, CL, CX
   use med_internalstate_mod , only : mastertask, logunit
   use med_constants_mod     , only : dbug_flag    => med_constants_dbug_flag
-  use med_utils_mod         , only : memcheck     => med_memcheck
-  use med_utils_mod         , only : chkerr       => med_utils_chkerr
-  use med_methods_mod       , only : FB_fldchk    => med_methods_FB_FldChk
-  use med_methods_mod       , only : FB_GetFldPtr => med_methods_FB_GetFldPtr
-  use med_methods_mod       , only : FB_diagnose  => med_methods_FB_diagnose
-  use med_methods_mod       , only : FB_init      => med_methods_FB_init
-  use med_map_mod           , only : med_map_FB_Regrid_Norm
-  use perf_mod              , only : t_startf, t_stopf
+  use shr_nuopc_utils_mod   , only : memcheck     => shr_nuopc_memcheck
+  use shr_nuopc_utils_mod   , only : chkerr       => shr_nuopc_utils_chkerr
+  use shr_nuopc_methods_mod , only : FB_fldchk    => shr_nuopc_methods_FB_FldChk
+  use shr_nuopc_methods_mod , only : FB_GetFldPtr => shr_nuopc_methods_FB_GetFldPtr
+  use shr_nuopc_methods_mod , only : FB_diagnose  => shr_nuopc_methods_FB_diagnose
+  use shr_nuopc_methods_mod , only : FB_init      => shr_nuopc_methods_FB_init
 
   implicit none
   private
@@ -53,6 +50,7 @@ module med_phases_aofluxes_mod
      real(R8) , pointer :: roce_HDO    (:) ! ocn HDO ratio
      real(R8) , pointer :: roce_18O    (:) ! ocn H218O ratio
      real(R8) , pointer :: pbot        (:) ! atm bottom pressure
+     real(R8) , pointer :: qbot        (:) ! atm bottom specific humidity
      real(R8) , pointer :: dens        (:) ! atm bottom density
      real(R8) , pointer :: tbot        (:) ! atm bottom surface T
      real(R8) , pointer :: sen         (:) ! heat flux: sensible
@@ -88,12 +86,15 @@ contains
 
   subroutine med_phases_aofluxes_run(gcomp, rc)
 
-    use ESMF     , only : ESMF_GridComp, ESMF_Clock, ESMF_GridCompGet
-    use ESMF     , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
-    use ESMF     , only : ESMF_FieldBundleIsCreated
-    use NUOPC    , only : NUOPC_IsConnected, NUOPC_CompAttributeGet
-    use esmFlds  , only : med_fldList_GetNumFlds, med_fldList_GetFldNames
-    use esmFlds  , only : fldListFr, fldListMed_aoflux, compatm, compocn, compname
+    use ESMF                  , only : ESMF_GridComp, ESMF_Clock, ESMF_GridCompGet
+    use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
+    use ESMF                  , only : ESMF_FieldBundleIsCreated
+    use NUOPC                 , only : NUOPC_IsConnected, NUOPC_CompAttributeGet
+    use med_internalstate_mod , only : InternalState
+    use med_map_mod           , only : med_map_FB_Regrid_Norm
+    use esmFlds               , only : shr_nuopc_fldList_GetNumFlds, shr_nuopc_fldList_GetFldNames
+    use esmFlds               , only : fldListFr, fldListMed_aoflux, compatm, compocn, compname
+    use perf_mod              , only : t_startf, t_stopf
 
     !-----------------------------------------------------------------------
     ! Compute atm/ocn fluxes
@@ -189,6 +190,7 @@ contains
     use ESMF     , only : ESMF_GridComp, ESMF_GridCompGet, ESMF_VM
     use ESMF     , only : ESMF_Field, ESMF_FieldGet, ESMF_FieldBundle, ESMF_VMGet
     use NUOPC    , only : NUOPC_CompAttributeGet
+    use perf_mod , only : t_startf, t_stopf
 
     !-----------------------------------------------------------------------
     ! Initialize pointers to the module variables
@@ -220,8 +222,6 @@ contains
     endif
     rc = ESMF_SUCCESS
     call memcheck(subname, 5, mastertask)
-
-    call t_startf('MED:'//subname)
 
     !----------------------------------
     ! get attributes that are set as module variables
@@ -398,6 +398,7 @@ contains
     use ESMF          , only : ESMF_LogWrite, ESMF_LogMsg_Info
     use NUOPC         , only : NUOPC_CompAttributeGet
     use shr_flux_mod  , only : shr_flux_atmocn, shr_flux_adjust_constants
+    use perf_mod      , only : t_startf, t_stopf
 
     !-----------------------------------------------------------------------
     ! Determine atm/ocn fluxes eother on atm or on ocean grid
@@ -496,18 +497,15 @@ contains
        end do
     end if
 
-    ! TODO(mvertens, 2019-10-30): remove the hard-wiring of minwind and replace it with namelist input
     call shr_flux_atmocn (&
-         nMax=lsize, zbot=aoflux%zbot, ubot=aoflux%ubot, vbot=aoflux%vbot, thbot=aoflux%thbot, &
-         qbot=aoflux%shum, s16O=aoflux%shum_16O, sHDO=aoflux%shum_HDO, s18O=aoflux%shum_18O, rbot=aoflux%dens, &
-         tbot=aoflux%tbot, us=aoflux%uocn, vs=aoflux%vocn, &
-         ts=aoflux%tocn, mask=aoflux%mask, seq_flux_atmocn_minwind=0.5_r8, &
-         sen=aoflux%sen, lat=aoflux%lat, lwup=aoflux%lwup, &
-         r16O=aoflux%roce_16O, rhdo=aoflux%roce_HDO, r18O=aoflux%roce_18O, &
-         evap=aoflux%evap, evap_16O=aoflux%evap_16O, evap_HDO=aoflux%evap_HDO, evap_18O=aoflux%evap_18O, &
-         taux=aoflux%taux, tauy=aoflux%tauy, tref=aoflux%tref, qref=aoflux%qref, &
-         ocn_surface_flux_scheme=0, &
-         duu10n=aoflux%duu10n, ustar_sv=aoflux%ustar, re_sv=aoflux%re, ssq_sv=aoflux%ssq, &
+         lsize, aoflux%zbot, aoflux%ubot, aoflux%vbot, aoflux%thbot, &
+         aoflux%shum, aoflux%shum_16O, aoflux%shum_HDO, aoflux%shum_18O, aoflux%dens , &
+         aoflux%tbot, aoflux%uocn, aoflux%vocn, &
+         aoflux%tocn, aoflux%mask, aoflux%sen, aoflux%lat, aoflux%lwup, &
+         aoflux%roce_16O, aoflux%roce_HDO, aoflux%roce_18O, &
+         aoflux%evap, aoflux%evap_16O, aoflux%evap_HDO, aoflux%evap_18O, &
+         aoflux%taux, aoflux%tauy, aoflux%tref, aoflux%qref, &
+         0, aoflux%duu10n, ustar_sv=aoflux%ustar, re_sv=aoflux%re, ssq_sv=aoflux%ssq, &
          missval = 0.0_r8)
 
     do n = 1,lsize

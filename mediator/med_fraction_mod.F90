@@ -112,17 +112,17 @@ module med_fraction_mod
   !
   !-----------------------------------------------------------------------------
 
-  use med_kind_mod      , only : CX=>SHR_KIND_CX, CS=>SHR_KIND_CS, CL=>SHR_KIND_CL, R8=>SHR_KIND_R8
-  use med_constants_mod , only : dbug_flag      => med_constants_dbug_flag
-  use med_constants_mod , only : czero          => med_constants_czero
-  use med_utils_mod     , only : chkErr         => med_utils_ChkErr
-  use med_methods_mod   , only : FB_init        => med_methods_FB_init
-  use med_methods_mod   , only : FB_reset       => med_methods_FB_reset
-  use med_methods_mod   , only : FB_getFldPtr   => med_methods_FB_getFldPtr
-  use med_methods_mod   , only : FB_FieldRegrid => med_methods_FB_FieldRegrid
-  use med_methods_mod   , only : FB_diagnose    => med_methods_FB_diagnose
-  use med_methods_mod   , only : FB_fldChk      => med_methods_FB_fldChk
-  use esmFlds           , only : ncomps
+  use esmFlds               , only : ncomps
+  use med_constants_mod     , only : R8
+  use med_constants_mod     , only : dbug_flag      => med_constants_dbug_flag
+  use med_constants_mod     , only : czero          => med_constants_czero
+  use shr_nuopc_utils_mod   , only : chkErr         => shr_nuopc_utils_ChkErr
+  use shr_nuopc_methods_mod , only : FB_init        => shr_nuopc_methods_FB_init
+  use shr_nuopc_methods_mod , only : FB_reset       => shr_nuopc_methods_FB_reset
+  use shr_nuopc_methods_mod , only : FB_getFldPtr   => shr_nuopc_methods_FB_getFldPtr
+  use shr_nuopc_methods_mod , only : FB_FieldRegrid => shr_nuopc_methods_FB_FieldRegrid
+  use shr_nuopc_methods_mod , only : FB_diagnose    => shr_nuopc_methods_FB_diagnose
+  use shr_nuopc_methods_mod , only : FB_fldChk      => shr_nuopc_methods_FB_fldChk
 
   implicit none
   private
@@ -567,7 +567,7 @@ contains
        endif
 
        ! Set 'lfrac' in FBFrac(compglc)
-       if ( is_local%wrap%comp_present(complnd) .and. is_local%wrap%med_coupling_active(complnd,compglc)) then
+       if (is_local%wrap%comp_present(complnd)) then
           if (.not. ESMF_RouteHandleIsCreated(is_local%wrap%RH(complnd,compglc,mapconsf), rc=rc)) then
              call med_map_Fractions_init( gcomp, complnd, compglc, &
                   FBSrc=is_local%wrap%FBImp(complnd,complnd), &
@@ -641,7 +641,6 @@ contains
     type(InternalState)        :: is_local
     real(r8), pointer          :: lfrac(:)
     real(r8), pointer          :: ifrac(:)
-    real(r8), pointer          :: ifrac_nstod(:)
     real(r8), pointer          :: ofrac(:)
     real(r8), pointer          :: Si_ifrac(:)
     real(r8), pointer          :: Si_imask(:)
@@ -762,36 +761,28 @@ contains
                   is_local%wrap%RH(compice,compatm,mapnstod), &
                   zeroregion=ESMF_REGION_TOTAL, rc=rc)
              if (ChkErr(rc,__LINE__,u_FILE_u)) return
-             call FB_getFldPtr(is_local%wrap%FBfrac(compatm), 'ifrac', ifrac_nstod, rc=rc)
-             if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
              call FB_FieldRegrid(&
                   is_local%wrap%FBfrac(compice), 'ifrac', &
                   is_local%wrap%FBfrac(compatm), 'ifrac', &
                   is_local%wrap%RH(compice,compatm,mapconsf), &
-                  zeroregion=ESMF_REGION_TOTAL, rc=rc)
+                  zeroregion=ESMF_REGION_SELECT, rc=rc)
              if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-             ! Determine ifrac on atm grid
+             ! Now set ofrac=1-ifrac and lfrac=0 on the atm grid
              call FB_getFldPtr(is_local%wrap%FBfrac(compatm), 'ifrac', ifrac, rc=rc)
              if (ChkErr(rc,__LINE__,u_FILE_u)) return
-             where (ifrac .eq. 0.0_R8 .and. abs(ifrac_nstod) .gt.  0.0_R8)
-                ifrac = ifrac_nstod
-             endwhere
-
-             ! Determine ofrac and lfrac on atm grid - set ofrac=1-ifrac and lfrac=0
              call FB_getFldPtr(is_local%wrap%FBfrac(compatm), 'ofrac', ofrac, rc=rc)
              if (ChkErr(rc,__LINE__,u_FILE_u)) return
              call FB_getFldPtr(is_local%wrap%FBfrac(compatm), 'lfrac', lfrac, rc=rc)
              if (ChkErr(rc,__LINE__,u_FILE_u)) return
-             ofrac(:) = 1.0_R8 - ifrac(:)
-             lfrac(:) = 0.0_R8
+
+             ofrac = 1.0_R8 - ifrac
+             lfrac = 0.0_R8
 
           else
 
              if (ESMF_RouteHandleIsCreated(is_local%wrap%RH(compice,compatm,mapfcopy), rc=rc)) then
-                ! TODO (mvertens, 2019-11-20): this is not being used when ice and atm are on the same grid
-                ! - this needs to be implemented
                 maptype = mapfcopy
              else
                 maptype = mapconsf

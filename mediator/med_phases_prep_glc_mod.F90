@@ -4,33 +4,33 @@ module med_phases_prep_glc_mod
   ! Mediator phases for preparing glc export from mediator
   !-----------------------------------------------------------------------------
 
-  use med_kind_mod          , only : CX=>SHR_KIND_CX, CS=>SHR_KIND_CS, CL=>SHR_KIND_CL, R8=>SHR_KIND_R8
   use NUOPC                 , only : NUOPC_CompAttributeGet
-  use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_LOGMSG_ERROR, ESMF_SUCCESS, ESMF_FAILURE
+  use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS, ESMF_FAILURE
   use ESMF                  , only : ESMF_VM, ESMF_VMGet, ESMF_VMAllReduce, ESMF_REDUCE_SUM
-  use ESMF                  , only : ESMF_FieldBundle, ESMF_Clock
-  use ESMF                  , only : ESMF_Alarm, ESMF_ClockGetAlarm, ESMF_AlarmIsRinging, ESMF_AlarmRingerOff
+  use ESMF                  , only : ESMF_FieldBundle
   use ESMF                  , only : ESMF_GridComp, ESMF_GridCompGet
   use ESMF                  , only : ESMF_RouteHandleIsCreated
   use ESMF                  , only : ESMF_FieldBundle, ESMF_FieldBundleGet, ESMF_FieldBundleAdd
   use ESMF                  , only : ESMF_FieldBundleCreate, ESMF_FieldBundleIsCreated
   use ESMF                  , only : ESMF_Field, ESMF_FieldGet, ESMF_FieldCreate
   use ESMF                  , only : ESMF_Array, ESMF_ArrayGet, ESMF_ArrayCreate, ESMF_ArrayDestroy
-  use ESMF                  , only : ESMF_DistGrid, ESMF_AttributeSet
+  use ESMF                  , only : ESMF_DistGrid
   use ESMF                  , only : ESMF_Mesh, ESMF_MeshGet, ESMF_MESHLOC_ELEMENT
   use ESMF                  , only : ESMF_TYPEKIND_R8
   use esmFlds               , only : compglc, complnd, mapbilnr, mapconsf, compname
-  use esmFlds               , only : med_fldlist_type
+  use esmFlds               , only : shr_nuopc_fldlist_type
+  use shr_sys_mod           , only : shr_sys_abort
   use med_internalstate_mod , only : InternalState, mastertask, logunit
+  use med_constants_mod     , only : R8, CS
   use med_constants_mod     , only : dbug_flag=>med_constants_dbug_flag
   use med_internalstate_mod , only : InternalState, mastertask, logunit
   use med_map_mod           , only : med_map_FB_Regrid_Norm
   use med_map_mod           , only : med_map_Fractions_Init
-  use med_methods_mod       , only : FB_Init      => med_methods_FB_init
-  use med_methods_mod       , only : FB_getFldPtr => med_methods_FB_getFldPtr
-  use med_methods_mod       , only : FB_diagnose  => med_methods_FB_diagnose
-  use med_methods_mod       , only : FB_reset     => med_methods_FB_reset
-  use med_utils_mod         , only : chkerr       => med_utils_ChkErr
+  use shr_nuopc_methods_mod , only : FB_Init      => shr_nuopc_methods_FB_init
+  use shr_nuopc_methods_mod , only : FB_getFldPtr => shr_nuopc_methods_FB_getFldPtr
+  use shr_nuopc_methods_mod , only : FB_diagnose  => shr_nuopc_methods_FB_diagnose
+  use shr_nuopc_methods_mod , only : FB_reset     => shr_nuopc_methods_FB_reset
+  use shr_nuopc_utils_mod   , only : chkerr       => shr_nuopc_utils_ChkErr
   use glc_elevclass_mod     , only : glc_get_num_elevation_classes
   use glc_elevclass_mod     , only : glc_get_elevation_classes
   use glc_elevclass_mod     , only : glc_get_fractional_icecov
@@ -52,12 +52,12 @@ module med_phases_prep_glc_mod
   ! Need to keep track of the lnd->med fields destined for glc in the FBlndAccum field bundle.
 
   ! Needed for standard lnd->glc mapping
-  type(ESMF_FieldBundle) :: FBlndAccum_lnd
-  type(ESMF_FieldBundle) :: FBlndAccum_glc
-  integer                :: FBlndAccumCnt
-  type(med_fldlist_type) :: fldlist_lnd2glc
-  character(len=14)      :: fldnames_fr_lnd(3) = (/'Flgl_qice_elev','Sl_tsrf_elev  ','Sl_topo_elev  '/)
-  character(len=14)      :: fldnames_to_glc(2) = (/'Flgl_qice     ','Sl_tsrf       '/)
+  type(ESMF_FieldBundle)       :: FBlndAccum_lnd
+  type(ESMF_FieldBundle)       :: FBlndAccum_glc
+  integer                      :: FBlndAccumCnt
+  type(shr_nuopc_fldlist_type) :: fldlist_lnd2glc
+  character(len=14)            :: fldnames_fr_lnd(3) = (/'Flgl_qice_elev','Sl_tsrf_elev  ','Sl_topo_elev  '/)
+  character(len=14)            :: fldnames_to_glc(2) = (/'Flgl_qice     ','Sl_tsrf       '/)
 
   ! Whether to renormalize the SMB for conservation.
   ! Should be set to true for 2-way coupled runs with evolving ice sheets.
@@ -65,23 +65,21 @@ module med_phases_prep_glc_mod
   logical :: smb_renormalize
 
   ! Needed if renormalize SMB
-  type(ESMF_FieldBundle)      :: FBglc_icemask
-  type(ESMF_FieldBundle)      :: FBlnd_icemask
-  type(med_fldlist_type)      :: fldlist_glc2lnd_icemask
-  type(ESMF_FieldBundle)      :: FBglc_frac
-  type(ESMF_FieldBundle)      :: FBlnd_frac
-  type(med_fldlist_type)      :: fldlist_glc2lnd_frac
-  real(r8) , pointer          :: aream_l(:)         ! cell areas on land grid, for mapping
-  real(r8) , pointer          :: aream_g(:)         ! cell areas on glc grid, for mapping
-  character(len=*), parameter :: qice_fieldname   = 'Flgl_qice' ! Name of flux field giving surface mass balance
-  character(len=*), parameter :: Sg_frac_field    = 'Sg_ice_covered'
-  character(len=*), parameter :: Sg_topo_field    = 'Sg_topo'
-  character(len=*), parameter :: Sg_icemask_field = 'Sg_icemask'
+  type(ESMF_FieldBundle)       :: FBglc_icemask
+  type(ESMF_FieldBundle)       :: FBlnd_icemask
+  type(shr_nuopc_fldlist_type) :: fldlist_glc2lnd_icemask
+  type(ESMF_FieldBundle)       :: FBglc_frac
+  type(ESMF_FieldBundle)       :: FBlnd_frac
+  type(shr_nuopc_fldlist_type) :: fldlist_glc2lnd_frac
+  real(r8) , pointer           :: aream_l(:)         ! cell areas on land grid, for mapping
+  real(r8) , pointer           :: aream_g(:)         ! cell areas on glc grid, for mapping
+  character(len=*), parameter  :: qice_fieldname   = 'Flgl_qice' ! Name of flux field giving surface mass balance
+  character(len=*), parameter  :: Sg_frac_field    = 'Sg_ice_covered'
+  character(len=*), parameter  :: Sg_topo_field    = 'Sg_topo'
+  character(len=*), parameter  :: Sg_icemask_field = 'Sg_icemask'
 
   ! Size of undistributed dimension from land
   integer :: ungriddedCount ! this equals the number of elevation classes + 1 (for bare land)
-
-  logical :: init_prep_glc = .false.
 
   character(*), parameter :: u_FILE_u  = &
        __FILE__
@@ -160,7 +158,6 @@ contains
        call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_output, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
        ungriddedCount = ungriddedUBound_output(1)
-
        ! TODO: check that ungriddedCount = glc_nec+1
 
        call FB_GetFldPtr(is_local%wrap%FBImp(complnd,complnd), fldnames_fr_lnd(1), fldptr2=data2d_in, rc=rc)
@@ -177,8 +174,6 @@ contains
           if (chkerr(rc,__LINE__,u_FILE_u)) return
           call ESMF_FieldBundleAdd(FBlndAccum_lnd, (/lfield/), rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
-          call ESMF_LogWrite(trim(subname)//' adding field '//trim(fldnames_fr_lnd(n))//' to FBLndAccum_lnd', &
-               ESMF_LOGMSG_INFO)
        end do
        call FB_reset(FBlndAccum_lnd, value=0.0_r8, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
@@ -253,10 +248,7 @@ contains
           end if
        case default
           write(logunit,*) subname,' ERROR: unknown value for glc_renormalize_smb: ', trim(glc_renormalize_smb)
-          call ESMF_LogWrite(trim(subname)//' ERROR: unknown value for glc_renormalize_smb: '// trim(glc_renormalize_smb), &
-               ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
-          rc = ESMF_FAILURE
-          return
+          call shr_sys_abort(subname//' ERROR: unknown value for glc_renormalize_smb')
        end select
 
        ! -------------------------------
@@ -373,6 +365,7 @@ contains
     integer             :: i,n,ncnt
     real(r8), pointer   :: data2d_in(:,:)
     real(r8), pointer   :: data2d_out(:,:)
+    logical             :: first_time = .true.
     character(len=*),parameter  :: subname='(med_phases_prep_glc_accum)'
     !---------------------------------------
 
@@ -411,10 +404,10 @@ contains
     if (ncnt > 0) then
 
        ! Initialize module variables needed to accumulate input to glc
-       if (.not. init_prep_glc) then
+       if (first_time) then
           call  med_phases_prep_glc_init(gcomp, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
-          init_prep_glc = .true.
+          first_time = .false.
        end if
 
        do n = 1, size(fldnames_fr_lnd)
@@ -458,11 +451,8 @@ contains
 
     ! local variables
     type(InternalState)    :: is_local
-    type(ESMF_Clock)       :: clock
-    type(ESMF_Alarm)       :: alarm
     integer                :: i, n, ncnt            ! counters
     real(r8), pointer      :: data2d(:,:)
-    real(r8), pointer      :: data2d_import(:,:)
     character(len=*) , parameter   :: subname='(med_phases_prep_glc_avg)'
     !---------------------------------------
 
@@ -494,102 +484,60 @@ contains
     if (ncnt ==  0) then
        call ESMF_LogWrite(trim(subname)//": only scalar data is present in FBExp(compglc), returning", &
             ESMF_LOGMSG_INFO)
-       call t_stopf('MED:'//subname)
-       RETURN
-    end if
 
-    ! Initialize module variables needed to accumulate input to glc
-    if (.not. init_prep_glc) then
-       call  med_phases_prep_glc_init(gcomp, rc)
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       init_prep_glc = .true.
-    end if
-
-    !---------------------------------------
-    ! Determine if avg alarm is ringing - and if not ringing then return
-    !---------------------------------------
-
-    call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    call ESMF_ClockGetAlarm(clock, alarmname='alarm_glc_avg', alarm=alarm, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    ! If the is ringing - turn it off and continue - otherwise reset field bundle to zero and return
-    if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
-       call ESMF_AlarmRingerOff( alarm, rc=rc )
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
-       call ESMF_LogWrite(trim(subname)//": glc_avg alarm is not ringing - returning", ESMF_LOGMSG_INFO)
-       ! Reset export field bundle to zero
-       call FB_reset(is_local%wrap%FBExp(compglc), value=0.0_r8, rc=rc)
-       if (chkerr(rc,__LINE__,u_FILE_u)) return
-       ! turn on stop timer and return
-       call t_stopf('MED:'//subname)
-       ! return
-       RETURN
-    end if
 
-    !---------------------------------------
-    ! Average import from accumulated land import FB
-    !---------------------------------------
+       !---------------------------------------
+       ! Average import from accumulated land import FB
+       !---------------------------------------
 
-    call ESMF_LogWrite(trim(subname)//": glc_avg alarm is ringing - averaging input from lnd to glc", ESMF_LOGMSG_INFO)
-
-    do n = 1, size(fldnames_fr_lnd)
-       call FB_GetFldPtr(FBlndAccum_lnd, fldnames_fr_lnd(n), fldptr2=data2d, rc=rc)
-       if (chkerr(rc,__LINE__,u_FILE_u)) return
-       if (FBlndAccumCnt > 0) then
-          ! If accumulation count is greater than 0, do the averaging
-          data2d(:,:) = data2d(:,:) / real(FBlndAccumCnt)
-       else
-          ! If accumulation count is 0, then simply set the averaged field bundle values from the land
-          ! to the import field bundle values
-          call FB_GetFldPtr(is_local%wrap%FBImp(complnd,complnd), fldnames_fr_lnd(n), fldptr2=data2d_import, rc=rc)
+       do n = 1, size(fldnames_fr_lnd)
+          call FB_GetFldPtr(FBlndAccum_lnd, fldnames_fr_lnd(n), fldptr2=data2d, rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
-          data2d(:,:) = data2d_import(:,:)
+          data2d(:,:) = data2d(:,:) / real(FBlndAccumCnt)
+       end do
+
+       if (dbug_flag > 1) then
+          call FB_diagnose(FBlndAccum_lnd, string=trim(subname)//&
+               ' FBlndAccum for after avg for field bundle ', rc=rc)
+          if (chkErr(rc,__LINE__,u_FILE_u)) return
        end if
-    end do
 
-    if (dbug_flag > 1) then
-       call FB_diagnose(FBlndAccum_lnd, string=trim(subname)//&
-            ' FBlndAccum for after avg for field bundle ', rc=rc)
+       !---------------------------------------
+       ! Map accumulated field bundle from land grid (with elevation classes) to glc grid (without elevation classes)
+       ! and set FBExp(compglc) data
+       !---------------------------------------
+
+       call FB_reset(FBlndAccum_glc, value=0.0_r8, rc=rc)
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
+
+       call med_phases_prep_glc_map_lnd2glc(gcomp, rc)
        if (chkErr(rc,__LINE__,u_FILE_u)) return
+
+       if (dbug_flag > 1) then
+          call FB_diagnose(is_local%wrap%FBExp(compglc), string=trim(subname)//' FBexp(compglc) ', rc=rc)
+          if (chkErr(rc,__LINE__,u_FILE_u)) return
+       endif
+
+       !---------------------------------------
+       ! zero accumulator and accumulated field bundles
+       !---------------------------------------
+
+       FBlndAccumCnt = 0
+
+       call FB_reset(FBlndAccum_lnd, value=0.0_r8, rc=rc)
+       if (chkErr(rc,__LINE__,u_FILE_u)) return
+       call FB_reset(FBlndAccum_glc, value=0.0_r8, rc=rc)
+       if (chkErr(rc,__LINE__,u_FILE_u)) return
+
+       !---------------------------------------
+       ! update local scalar data - set valid input flag to .true.  TODO:
+       !---------------------------------------
+
+       !call med_infodata_set_valid_glc_input(.true., med_infodata, rc=rc) ! TODO: fix this
+       !if (chkErr(rc,__LINE__,u_FILE_u)) return
+
     end if
-
-    !---------------------------------------
-    ! Map accumulated field bundle from land grid (with elevation classes) to glc grid (without elevation classes)
-    ! and set FBExp(compglc) data
-    !---------------------------------------
-
-    call FB_reset(FBlndAccum_glc, value=0.0_r8, rc=rc)
-    if (chkerr(rc,__LINE__,u_FILE_u)) return
-
-    call med_phases_prep_glc_map_lnd2glc(gcomp, rc)
-    if (chkErr(rc,__LINE__,u_FILE_u)) return
-
-    if (dbug_flag > 1) then
-       call FB_diagnose(is_local%wrap%FBExp(compglc), string=trim(subname)//' FBexp(compglc) ', rc=rc)
-       if (chkErr(rc,__LINE__,u_FILE_u)) return
-    endif
-
-    !---------------------------------------
-    ! zero accumulator and accumulated field bundles
-    !---------------------------------------
-
-    FBlndAccumCnt = 0
-
-    call FB_reset(FBlndAccum_lnd, value=0.0_r8, rc=rc)
-    if (chkErr(rc,__LINE__,u_FILE_u)) return
-    call FB_reset(FBlndAccum_glc, value=0.0_r8, rc=rc)
-    if (chkErr(rc,__LINE__,u_FILE_u)) return
-
-    !---------------------------------------
-    ! update local scalar data - set valid input flag to .true.  TODO:
-    !---------------------------------------
-
-    !call med_infodata_set_valid_glc_input(.true., med_infodata, rc=rc) ! TODO: fix this
-    !if (chkErr(rc,__LINE__,u_FILE_u)) return
 
     if (dbug_flag > 5) then
        call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO)
@@ -624,7 +572,7 @@ contains
     real(r8)            :: elev_l, elev_u        ! lower and upper elevations in interpolation range
     real(r8)            :: d_elev                ! elev_u - elev_l
     integer             :: nfld, ec
-    integer             :: i,j,n,g,lsize_g
+    integer             :: i,j,n,g,ncnt, lsize_g
     character(len=*) , parameter   :: subname='(med_phases_prep_glc_mod:med_phases_prep_glc_map_lnd2glc)'
     !---------------------------------------
     !---------------------------------------
@@ -1047,8 +995,6 @@ contains
           qice_g(n) = qice_g(n) * ablat_renorm_factor
        endif
     enddo
-
-    call t_stopf('MED:'//subname)
 
   end subroutine med_phases_prep_glc_renormalize_smb
 
