@@ -564,12 +564,6 @@ contains
                   purpose="Instance", itemCount=ungriddedCount,  isPresent=isPresent, rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-!HK FBImpwav_ice fieldNameList from STflds
-             call ESMF_FieldGet(lfield, rank=lrank, ungriddedUBound=hUbound,ungriddedLBound=hLbound,  rc=rc)
-             if (chkerr(rc,__LINE__,u_FILE_u)) return
-             write(6,*)'HK STflds ', trim(lfieldnamelist(n)), ungriddedCount,":",ungriddedCount, hLbound, hUbound, present(FBFlds), present(STflds)
-
-
              ! Create the field on a lmesh
              if (ungriddedCount > 0) then
                 ! ungridded dimensions in field
