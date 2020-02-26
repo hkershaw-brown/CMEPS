@@ -125,7 +125,6 @@ contains
             is_local%wrap%FBExp(compice), is_local%wrap%FBFrac(compice), &
             is_local%wrap%FBImp(:,compice), fldListTo(compice), rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
-print*, 'HK after med_merge_auto'
        !---------------------------------------
        !--- custom calculations
        !---------------------------------------
