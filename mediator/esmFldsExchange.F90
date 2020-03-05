@@ -1819,6 +1819,26 @@ contains
     enddo
 
     ! ---------------------------------------------------------------------
+    ! to ice: tauice from wav
+    ! ---------------------------------------------------------------------
+    do n = 1,2 
+       write(fvalue,'(I1)') n
+       if (phase == 'advertise') then 
+          call addfld(fldListFr(compwav)%flds, 'wav_tauice'//trim(adjustl(fvalue)))
+          call addfld(fldListTo(compice)%flds, 'wav_tauice'//trim(adjustl(fvalue)))
+       else 
+          if ( fldchk(is_local%wrap%FBImp(compwav, compwav), 'wav_tauice'//trim(adjustl(fvalue)), rc=rc) .and. &
+               fldchk(is_local%wrap%FBExp(compice)         , 'wav_tauice'//trim(adjustl(fvalue)), rc=rc)) then 
+             call addmap(fldListFr(compwav)%flds, 'wav_tauice'//trim(adjustl(fvalue)), compice, mapbilnr, 'one', 'unset') !HK mapbilnr, one?
+             call addmrg(fldListTo(compice)%flds, 'wav_tauice'//trim(adjustl(fvalue)), mrg_from1=compwav, &
+                  mrg_fld1='wav_tauice'//trim(adjustl(fvalue)), mrg_type1='copy')
+          end if
+       end if
+    enddo
+
+
+
+    ! ---------------------------------------------------------------------
     ! to ice: frozen runoff from rof and glc
     ! ---------------------------------------------------------------------
     do n = 1,size(iso)

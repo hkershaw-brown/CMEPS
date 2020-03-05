@@ -1467,6 +1467,24 @@
          Stokes drift v component
          cesm only
      #
+     #   
+     #-----------------------------------
+     # section: ice import
+     #-----------------------------------
+     #   
+
+     - standard_name: wav_tauice1
+       canonical_units: 1
+       description: ice import from wave
+         wave-ice momentum flux
+         cesm only
+
+     - standard_name: wav_tauice2
+       canonical_units: 1
+       description: ice import from wave 
+         wave-ice momentum flux 
+         cesm only 
+
      - standard_name: wave_elevation_spectrum1
        canonical_units: 1
        description: ice import from wave
