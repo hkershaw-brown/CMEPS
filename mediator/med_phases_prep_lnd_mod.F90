@@ -4,8 +4,9 @@ module med_phases_prep_lnd_mod
   ! Mediator phases for preparing land export from mediator
   !-----------------------------------------------------------------------------
 
+  use med_kind_mod          , only : CX=>SHR_KIND_CX, CS=>SHR_KIND_CS, CL=>SHR_KIND_CL, R8=>SHR_KIND_R8
   use ESMF                  , only : operator(/=)
-  use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
+  use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_LOGMSG_ERROR, ESMF_SUCCESS, ESMF_FAILURE
   use ESMF                  , only : ESMF_FieldBundle, ESMF_FieldBundleGet
   use ESMF                  , only : ESMF_FieldBundleCreate, ESMF_FieldBundleAdd
   use ESMF                  , only : ESMF_RouteHandle, ESMF_RouteHandleIsCreated
@@ -16,18 +17,17 @@ module med_phases_prep_lnd_mod
   use ESMF                  , only : ESMF_TYPEKIND_R8
   use esmFlds               , only : complnd, compatm, compglc, ncomps, compname, mapconsf
   use esmFlds               , only : fldListFr, fldListTo
-  use esmFlds               , only : shr_nuopc_fldlist_type
-  use shr_nuopc_methods_mod , only : FB_getFieldN    => shr_nuopc_methods_FB_getFieldN
-  use shr_nuopc_methods_mod , only : FB_getFldPtr    => shr_nuopc_methods_FB_getFldPtr
-  use shr_nuopc_methods_mod , only : FB_getNumFlds   => shr_nuopc_methods_FB_getNumFlds
-  use shr_nuopc_methods_mod , only : FB_init         => shr_nuopc_methods_FB_init
-  use shr_nuopc_methods_mod , only : FB_diagnose     => shr_nuopc_methods_FB_diagnose
-  use shr_nuopc_methods_mod , only : FB_FldChk       => shr_nuopc_methods_FB_FldChk
-  use shr_nuopc_methods_mod , only : State_GetScalar => shr_nuopc_methods_State_GetScalar
-  use shr_nuopc_methods_mod , only : State_SetScalar => shr_nuopc_methods_State_SetScalar
-  use shr_nuopc_utils_mod   , only : chkerr          => shr_nuopc_utils_ChkErr
-  use med_constants_mod     , only : R8, CS
-  use med_constants_mod     , only : dbug_flag=>med_constants_dbug_flag
+  use esmFlds               , only : med_fldlist_type
+  use med_methods_mod       , only : FB_getFieldN    => med_methods_FB_getFieldN
+  use med_methods_mod       , only : FB_getFldPtr    => med_methods_FB_getFldPtr
+  use med_methods_mod       , only : FB_getNumFlds   => med_methods_FB_getNumFlds
+  use med_methods_mod       , only : FB_init         => med_methods_FB_init
+  use med_methods_mod       , only : FB_diagnose     => med_methods_FB_diagnose
+  use med_methods_mod       , only : FB_FldChk       => med_methods_FB_FldChk
+  use med_methods_mod       , only : State_GetScalar => med_methods_State_GetScalar
+  use med_methods_mod       , only : State_SetScalar => med_methods_State_SetScalar
+  use med_utils_mod         , only : chkerr          => med_utils_ChkErr
+  use med_constants_mod     , only : dbug_flag       => med_constants_dbug_flag
   use med_internalstate_mod , only : InternalState, logunit
   use med_map_mod           , only : med_map_FB_Regrid_Norm
   use med_map_mod           , only : med_map_Fractions_Init
@@ -36,7 +36,6 @@ module med_phases_prep_lnd_mod
   use glc_elevclass_mod     , only : glc_mean_elevation_virtual
   use glc_elevclass_mod     , only : glc_get_fractional_icecov
   use perf_mod              , only : t_startf, t_stopf
-  use shr_sys_mod           , only : shr_sys_abort
 
   implicit none
   private
@@ -58,10 +57,6 @@ module med_phases_prep_lnd_mod
   type(ESMF_FieldBundle) :: FBlnd_frac_x_icemask ! elevation classes
   type(ESMF_FieldBundle) :: FBglc_ec
   type(ESMF_FieldBundle) :: FBlnd_ec
-
-  type(shr_nuopc_fldlist_type) :: fldlist_glc2lnd_frac_x_icemask
-  type(shr_nuopc_fldlist_type) :: fldlist_glc2lnd_norm_icemask
-  type(shr_nuopc_fldlist_type) :: fldlist_glc2lnd_norm_none
 
   ! the number of elevation classes (excluding bare land) = ungriddedCount - 1
   integer :: ungriddedCount ! this equals the number of elevation classes + 1 (for bare land)
@@ -121,7 +116,8 @@ contains
 
        do n1 = 1,ncomps
           if (is_local%wrap%med_coupling_active(n1,complnd)) then
-             ! The following will map all atm->lnd, rof->lnd, Sg_icemask_field and Sg_topo_field
+             ! The following will map all atm->lnd, rof->lnd, and 
+             ! glc->lnd only for Sg_icemask_field and Sg_icemask_coupled_fluxes
              call med_map_FB_Regrid_Norm( &
                   fldsSrc=fldListFr(n1)%flds, &
                   srccomp=n1, destcomp=complnd, &
@@ -139,8 +135,8 @@ contains
        !--- auto merges to create FBExp(complnd)
        !---------------------------------------
 
-       ! The following will merge all fields in fldsSrc (for glc these
-       ! are Sg_icemask and Sg_topo)
+       ! The following will merge all fields in fldsSrc 
+       ! (for glc these are Sg_icemask and Sg_icemask_coupled_fluxes)
        call med_merge_auto(trim(compname(complnd)), &
             is_local%wrap%FBExp(complnd), &
             is_local%wrap%FBFrac(complnd), &
@@ -160,8 +156,7 @@ contains
              first_call = .false.
           end if
 
-          ! The will following will map and merge Sg_frac and Sg_topo
-          ! (and in the future Flgg_hflx)
+          ! The will following will map and merge Sg_frac and Sg_topo (and in the future Flgg_hflx)
           call med_map_glc2lnd(gcomp, rc=rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end if
@@ -268,7 +263,7 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
     ! -------------------------------
-    ! Create module field bundlel ice masks on glc grid (no elevation classes)
+    ! Create module field bundles
     ! -------------------------------
 
     FBglc_icemask = ESMF_FieldBundleCreate(rc=rc)
@@ -277,11 +272,6 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     call ESMF_FieldBundleAdd(FBglc_icemask, (/lfield/), rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-
-    ! -------------------------------
-    ! Create module field bundle for icefrac times icemask in multiple elevation classes
-    ! on glc and land (fraction in this elevation class) x (icemask) for a given elevation class
-    ! -------------------------------
 
     FBglc_frac_x_icemask = ESMF_FieldBundleCreate(rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
@@ -299,15 +289,6 @@ contains
     call ESMF_FieldBundleAdd(FBlnd_frac_x_icemask, (/lfield/), rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-    allocate(fldlist_glc2lnd_frac_x_icemask%flds(1))
-    fldlist_glc2lnd_frac_x_icemask%flds(1)%shortname = trim(Sg_frac_x_icemask)
-    fldlist_glc2lnd_frac_x_icemask%flds(1)%mapindex(complnd) = mapconsf
-    fldlist_glc2lnd_frac_x_icemask%flds(1)%mapnorm(complnd) = 'none'
-
-    ! -------------------------------
-    ! Create generic multiple elevation module field bundles that can be re-used
-    ! -------------------------------
-
     FBglc_ec = ESMF_FieldBundleCreate(rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     lfield = ESMF_FieldCreate(lmesh_glc, ESMF_TYPEKIND_R8, name='field_ec', meshloc=ESMF_MESHLOC_ELEMENT, &
@@ -323,17 +304,6 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     call ESMF_FieldBundleAdd(FBlnd_ec, (/lfield/), rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-
-    ! determine different mapping types and normalization for generic field bundles above
-    allocate(fldlist_glc2lnd_norm_icemask%flds(1))
-    fldlist_glc2lnd_norm_icemask%flds(1)%shortname = 'field_ec'
-    fldlist_glc2lnd_norm_icemask%flds(1)%mapindex(complnd) = mapconsf
-    fldlist_glc2lnd_norm_icemask%flds(1)%mapnorm(complnd) = trim(Sg_icemask)
-
-    allocate(fldlist_glc2lnd_norm_none%flds(1))
-    fldlist_glc2lnd_norm_none%flds(1)%shortname = 'field_ec'
-    fldlist_glc2lnd_norm_none%flds(1)%mapindex(complnd) = mapconsf
-    fldlist_glc2lnd_norm_none%flds(1)%mapnorm(complnd) = 'none'
 
     ! -------------------------------
     ! Create route handle if it has not been created
@@ -351,7 +321,10 @@ contains
     ! -------------------------------
 
     if (FB_fldchk(is_local%wrap%FBExp(complnd), trim(Flgg_hflx), rc=rc)) then
-       call shr_sys_abort('ERROR: Flgg_hflx to land has not been implemented yet')
+       call ESMF_LogWrite(trim(subname)//'ERROR: Flgg_hflx to land has not been implemented yet', &
+            ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__)
+       rc = ESMF_FAILURE
+       return
     end if
 
   end subroutine med_map_glc2lnd_init
@@ -372,7 +345,8 @@ contains
 
     ! local variables
     type(InternalState)   :: is_local
-    integer               :: ec, nfld, n, l
+    type(med_fldlist_type) :: fldlist
+    integer               :: ec, nfld, n, l, g
     real(r8)              :: topo_virtual
     real(r8), pointer     :: icemask_g(:)             ! glc ice mask field on glc grid
     real(r8), pointer     :: frac_g(:)                ! total ice fraction in each glc cell
@@ -391,7 +365,6 @@ contains
     !-----------------------------------------------------------------------
 
     call t_startf('MED:'//subname)
-
     if (dbug_flag > 5) then
        call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO)
     end if
@@ -444,8 +417,12 @@ contains
     if (dbug_flag > 1) then
        call ESMF_LogWrite(trim(subname)//": calling mapping elevation class fractions from glc to land", ESMF_LOGMSG_INFO)
     end if
+    allocate(fldlist%flds(1))
+    fldlist%flds(1)%shortname = 'field_ec'
+    fldlist%flds(1)%mapindex(complnd) = mapconsf
+    fldlist%flds(1)%mapnorm(complnd) = trim(Sg_icemask)
     call med_map_FB_Regrid_Norm( &
-         fldsSrc=fldList_glc2lnd_norm_icemask%flds, &
+         fldsSrc=fldList%flds, &
          srccomp=compglc, &
          destcomp=complnd, &
          FBSrc=FBglc_ec, & ! this has multiple elevation classes
@@ -455,7 +432,7 @@ contains
          RouteHandles=is_local%wrap%RH(compglc,complnd,:), &
          string='mapping elevation class fractions from glc to land ', rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-
+    deallocate(fldlist%flds)
     call FB_getFldPtr(FBlnd_ec, 'field_ec', fldptr2=frac_l_ec, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     call FB_getFldPtr(is_local%wrap%FBExp(complnd), trim(Sg_frac)//'_elev', fldptr2=dataptr2d_exp, rc=rc)
@@ -478,7 +455,7 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     do ec = 1,ungriddedCount
        do l = 1,size(topo_g)
-          topo_x_icemask_g(:,:) = topo_g(l) * frac_x_icemask_g_ec(ec,l)
+          topo_x_icemask_g(ec,l) = topo_g(l) * frac_x_icemask_g_ec(ec,l)
        end do
     end do
 
@@ -486,8 +463,12 @@ contains
     if (dbug_flag > 1) then
        call ESMF_LogWrite(trim(subname)//": calling mapping of topo from glc to land", ESMF_LOGMSG_INFO)
     end if
+    allocate(fldlist%flds(1))
+    fldlist%flds(1)%shortname = 'field_ec'
+    fldlist%flds(1)%mapindex(complnd) = mapconsf
+    fldlist%flds(1)%mapnorm(complnd) = 'none'
     call med_map_FB_Regrid_Norm( &
-         fldsSrc=fldList_glc2lnd_norm_none%flds, &
+         fldsSrc=fldlist%flds, &
          srccomp=compglc, &
          destcomp=complnd, &
          FBSrc=FBglc_ec, &
@@ -497,6 +478,7 @@ contains
          RouteHandles=is_local%wrap%RH(compglc,complnd,:), &
          string='mapping topo from glc to land (with elevation classes)', rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
+    deallocate(fldlist%flds)
     call FB_getFldPtr(FBlnd_ec, 'field_ec', fldptr2=topo_l_ec , rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
@@ -504,8 +486,12 @@ contains
     if (dbug_flag > 1) then
        call ESMF_LogWrite(trim(subname)//": calling mapping of frac_x_icemask from glc to land", ESMF_LOGMSG_INFO)
     end if
+    allocate(fldlist%flds(1))
+    fldlist%flds(1)%shortname = trim(Sg_frac_x_icemask)
+    fldlist%flds(1)%mapindex(complnd) = mapconsf
+    fldlist%flds(1)%mapnorm(complnd) = 'none'
     call med_map_FB_Regrid_Norm( &
-         fldsSrc=fldList_glc2lnd_frac_x_icemask%flds, &
+         fldsSrc=fldList%flds, &
          srccomp=compglc, &
          destcomp=complnd, &
          FBSrc=FBglc_frac_x_icemask, &
@@ -515,7 +501,8 @@ contains
          RouteHandles=is_local%wrap%RH(compglc,complnd,:), &
          string='mapping frac_x_icemask from glc to land (with elevation classes)', rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-    call FB_getFldPtr(FBlnd_ec, 'field_ec', fldptr2=frac_x_icemask_l , rc=rc)
+    deallocate(fldlist%flds)
+    call FB_getFldPtr(FBlnd_frac_x_icemask, trim(Sg_frac_x_icemask), fldptr2=frac_x_icemask_l , rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
     ! set Sg_topo values in export state to land (in multiple elevation classes)
@@ -527,7 +514,6 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
     do ec = 1,ungriddedCount
        topo_virtual = glc_mean_elevation_virtual(ec-1) ! glc_mean_elevation_virtual uses 0:glc_nec
-       !write(6,*)'DEBUG: ec, topo_virtual = ',ec,topo_virtual
        do l = 1,size(frac_x_icemask_l, dim=2)
           if (frac_l_ec(ec,l) <= 0._r8) then
              dataptr2d_exp(ec,l) = topo_virtual
@@ -543,8 +529,8 @@ contains
 
     if (dbug_flag > 5) then
        call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO)
-       call t_stopf('MED:'//subname)
     end if
+    call t_stopf('MED:'//subname)
 
   end subroutine med_map_glc2lnd
 

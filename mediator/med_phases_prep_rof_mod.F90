@@ -10,23 +10,28 @@ module med_phases_prep_rof_mod
   !   this will be done in med_phases_prep_rof_avg
   !-----------------------------------------------------------------------------
 
+  use med_kind_mod          , only : CX=>SHR_KIND_CX, CS=>SHR_KIND_CS, CL=>SHR_KIND_CL, R8=>SHR_KIND_R8
   use ESMF                  , only : ESMF_FieldBundle
   use esmFlds               , only : ncomps, complnd, comprof, compname, mapconsf
-  use esmFlds               , only : shr_nuopc_fldlist_type
-  use med_constants_mod     , only : R8, CS
+  use esmFlds               , only : med_fldlist_type
+  use esmFlds               , only : fldListTo, fldListFr
   use med_constants_mod     , only : dbug_flag       => med_constants_dbug_flag
-  use shr_nuopc_utils_mod   , only : chkerr          => shr_nuopc_utils_ChkErr
-  use shr_nuopc_methods_mod , only : FB_init         => shr_nuopc_methods_FB_init
-  use shr_nuopc_methods_mod , only : FB_diagnose     => shr_nuopc_methods_FB_diagnose
-  use shr_nuopc_methods_mod , only : FB_getNumFlds   => shr_nuopc_methods_FB_getNumFlds
-  use shr_nuopc_methods_mod , only : FB_accum        => shr_nuopc_methods_FB_accum
-  use shr_nuopc_methods_mod , only : FB_getFldPtr    => shr_nuopc_methods_FB_getFldPtr
-  use shr_nuopc_methods_mod , only : FB_average      => shr_nuopc_methods_FB_average
-  use shr_nuopc_methods_mod , only : FB_reset        => shr_nuopc_methods_FB_reset
-  use shr_nuopc_methods_mod , only : FB_clean        => shr_nuopc_methods_FB_clean
-  use shr_nuopc_methods_mod , only : FB_FieldRegrid  => shr_nuopc_methods_FB_FieldRegrid
-  use shr_nuopc_methods_mod , only : State_GetScalar => shr_nuopc_methods_State_GetScalar
-  use shr_nuopc_methods_mod , only : State_SetScalar => shr_nuopc_methods_State_SetScalar
+  use med_constants_mod     , only : czero => med_constants_czero
+  use med_internalstate_mod , only : InternalState, mastertask
+  use med_utils_mod         , only : chkerr          => med_utils_ChkErr
+  use med_methods_mod       , only : FB_init         => med_methods_FB_init
+  use med_methods_mod       , only : FB_diagnose     => med_methods_FB_diagnose
+  use med_methods_mod       , only : FB_getNumFlds   => med_methods_FB_getNumFlds
+  use med_methods_mod       , only : FB_accum        => med_methods_FB_accum
+  use med_methods_mod       , only : FB_getFldPtr    => med_methods_FB_getFldPtr
+  use med_methods_mod       , only : FB_average      => med_methods_FB_average
+  use med_methods_mod       , only : FB_reset        => med_methods_FB_reset
+  use med_methods_mod       , only : FB_clean        => med_methods_FB_clean
+  use med_methods_mod       , only : FB_FieldRegrid  => med_methods_FB_FieldRegrid
+  use med_methods_mod       , only : State_GetScalar => med_methods_State_GetScalar
+  use med_methods_mod       , only : State_SetScalar => med_methods_State_SetScalar
+  use med_merge_mod         , only : med_merge_auto
+  use med_map_mod           , only : med_map_FB_Regrid_Norm
   use perf_mod              , only : t_startf, t_stopf
 
   implicit none
@@ -41,7 +46,7 @@ module med_phases_prep_rof_mod
   type(ESMF_FieldBundle)      :: FBrofVolr          ! needed for lnd2rof irrigation
   type(ESMF_FieldBundle)      :: FBlndIrrig         ! needed for lnd2rof irrigation
   type(ESMF_FieldBundle)      :: FBrofIrrig         ! needed for lnd2rof irrigation
-  type(shr_nuopc_fldlist_type):: fldlist_lnd2rof    ! needed for lnd2rof irrigation
+  type(med_fldlist_type)      :: fldlist_lnd2rof    ! needed for lnd2rof irrigation
 
   character(len=*), parameter :: volr_field             = 'Flrr_volrmch'
   character(len=*), parameter :: irrig_flux_field       = 'Flrl_irrig'
@@ -64,11 +69,10 @@ contains
     ! Mapping from the land to the rof grid is then done with the time averaged fields
     !------------------------------------
 
-    use ESMF                  , only : ESMF_GridComp, ESMF_GridCompGet
-    use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
-    use ESMF                  , only : ESMF_FieldBundleGet, ESMF_StateIsCreated, ESMF_StateGet
-    use ESMF                  , only : ESMF_FieldBundleIsCreated
-    use med_internalstate_mod , only : InternalState
+    use ESMF , only : ESMF_GridComp, ESMF_GridCompGet
+    use ESMF , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
+    use ESMF , only : ESMF_FieldBundleGet, ESMF_StateIsCreated, ESMF_StateGet
+    use ESMF , only : ESMF_FieldBundleIsCreated
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
@@ -90,7 +94,7 @@ contains
     rc = ESMF_SUCCESS
 
     !---------------------------------------
-    ! --- Get the internal state
+    ! Get the internal state
     !---------------------------------------
 
     nullify(is_local%wrap)
@@ -98,7 +102,7 @@ contains
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
     !---------------------------------------
-    !--- Count the number of fields outside of scalar data, if zero, then return
+    ! Count the number of fields outside of scalar data, if zero, then return
     !---------------------------------------
 
     if (.not. ESMF_FieldBundleIsCreated(is_local%wrap%FBImp(complnd,complnd))) then
@@ -115,8 +119,11 @@ contains
     end if
 
     !---------------------------------------
-    !-- Accumulate lnd input on lnd grid to send to rof
+    ! Accumulate lnd input on lnd grid 
     !---------------------------------------
+
+    ! Note that all import fields from the land are accumulated - but
+    ! only a few will actaully be sent to the river model
 
     if (ncnt > 0) then
        call FB_accum(&
@@ -148,15 +155,10 @@ contains
     ! Prepare the ROF export Fields from the mediator
     !------------------------------------
 
-    use NUOPC                 , only : NUOPC_IsConnected
-    use ESMF                  , only : ESMF_GridComp, ESMF_GridCompGet 
-    use ESMF                  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
-    use ESMF                  , only : ESMF_FieldBundleGet
-    use esmFlds               , only : fldListTo, fldListFr
-    use med_merge_mod         , only : med_merge_auto
-    use med_map_mod           , only : med_map_FB_Regrid_Norm
-    use med_internalstate_mod , only : InternalState, mastertask
-    use med_constants_mod     , only : czero => med_constants_czero
+    use NUOPC , only : NUOPC_IsConnected
+    use ESMF  , only : ESMF_GridComp, ESMF_GridCompGet 
+    use ESMF  , only : ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_SUCCESS
+    use ESMF  , only : ESMF_FieldBundleGet
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
@@ -205,8 +207,7 @@ contains
        !--- average import from land accumuled FB
        !---------------------------------------
 
-       call FB_average(is_local%wrap%FBImpAccum(complnd,complnd), &
-                                         is_local%wrap%FBImpAccumCnt(complnd), rc=rc)
+       call FB_average(is_local%wrap%FBImpAccum(complnd,complnd), is_local%wrap%FBImpAccumCnt(complnd), rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
 
        if (dbug_flag > 1) then
@@ -328,12 +329,10 @@ contains
     !     (non-volr-normalized) flux on the rof grid.
     !---------------------------------------------------------------
 
-    use ESMF                  , only : ESMF_GridComp, ESMF_Field, ESMF_FieldRegrid
-    use ESMF                  , only : ESMF_FieldBundle, ESMF_FieldBundleGet, ESMF_FieldBundleIsCreated
-    use ESMF                  , only : ESMF_SUCCESS, ESMF_FAILURE, ESMF_RouteHandleIsCreated
-    use ESMF                  , only : ESMF_LOGMSG_INFO, ESMF_LogWrite
-    use med_internalstate_mod , only : InternalState, mastertask
-    use med_map_mod           , only : med_map_FB_Regrid_norm
+    use ESMF , only : ESMF_GridComp, ESMF_Field, ESMF_FieldRegrid
+    use ESMF , only : ESMF_FieldBundle, ESMF_FieldBundleGet, ESMF_FieldBundleIsCreated
+    use ESMF , only : ESMF_SUCCESS, ESMF_FAILURE, ESMF_RouteHandleIsCreated
+    use ESMF , only : ESMF_LOGMSG_INFO, ESMF_LogWrite
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
@@ -395,25 +394,25 @@ contains
             flds_scalar_name=is_local%wrap%flds_scalar_name, &
             FBgeom=is_local%wrap%FBImp(complnd,complnd), &
             fieldNameList=(/trim(volr_field)/), rc=rc)
-       if (chkerr(rc,__LINE__,u_file_u)) return
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
 
        call FB_init(FBout=FBrofVolr, &
             flds_scalar_name=is_local%wrap%flds_scalar_name, &
             FBgeom=is_local%wrap%FBImp(comprof,comprof), &
             fieldNameList=(/trim(volr_field)/), rc=rc)
-       if (chkerr(rc,__LINE__,u_file_u)) return
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
 
        call FB_init(FBout=FBlndIrrig, &
             flds_scalar_name=is_local%wrap%flds_scalar_name, &
             FBgeom=is_local%wrap%FBImp(complnd,complnd), &
             fieldNameList=(/irrig_normalized_field, irrig_volr0_field/), rc=rc)
-       if (chkerr(rc,__LINE__,u_file_u)) return
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
 
        call FB_init(FBout=FBrofIrrig, &
             flds_scalar_name=is_local%wrap%flds_scalar_name, &
             FBgeom=is_local%wrap%FBImp(comprof,comprof), &
             fieldNameList=(/irrig_normalized_field, irrig_volr0_field/), rc=rc)
-       if (chkerr(rc,__line__,u_file_u)) return
+       if (chkerr(rc,__LINE__,u_FILE_u)) return
 
        allocate(fldlist_lnd2rof%flds(2))
        fldlist_lnd2rof%flds(1)%shortname = irrig_normalized_field
