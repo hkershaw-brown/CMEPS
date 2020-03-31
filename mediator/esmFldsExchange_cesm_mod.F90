@@ -74,6 +74,7 @@ contains
     character(len=CS), allocatable :: flds(:)
     character(len=CS), allocatable :: suffix(:)
     character(len=*) , parameter   :: subname='(esmFldsExchange_cesm)'
+    character(len=2)               :: fvalue !HK
     !--------------------------------------
 
     rc = ESMF_SUCCESS

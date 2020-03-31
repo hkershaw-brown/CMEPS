@@ -1440,8 +1440,6 @@ contains
     use ESMF                    , only : ESMF_GridCompGet, ESMF_AttributeGet, ESMF_ClockGet, ESMF_Success
     use ESMF                    , only : ESMF_StateIsCreated, ESMF_StateGet, ESMF_FieldBundleIsCreated, ESMF_LogFlush
     use ESMF                    , only : ESMF_VM
-    use ESMF                    , only : ESMF_FieldGet !,ESMF_StateGetField  !HK debugging
-    use shr_nuopc_methods_mod , only : FB_getFieldByName => shr_nuopc_methods_FB_getFieldByName !HK deubgging
     use NUOPC                   , only : NUOPC_CompAttributeSet, NUOPC_IsAtTime, NUOPC_SetAttribute
     use NUOPC                   , only : NUOPC_CompAttributeGet
     use med_fraction_mod        , only : med_fraction_init, med_fraction_set
@@ -1453,7 +1451,6 @@ contains
     use med_phases_profile_mod  , only : med_phases_profile
     use med_map_mod             , only : med_map_MapNorm_init, med_map_RouteHandles_init
     use med_io_mod              , only : med_io_init
-use shr_nuopc_methods_mod , only : FB_Field_diagnose => shr_nuopc_methods_FB_Field_diagnose  !HK
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp

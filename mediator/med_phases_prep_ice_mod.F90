@@ -66,9 +66,6 @@ contains
     real(r8)                       :: nextsw_cday
     logical                        :: first_precip_fact_call = .true.
     character(len=*),parameter     :: subname='(med_phases_prep_ice)'
-    !HK debugging
-    integer                        :: lrank
-    type(ESMF_Field)               :: lfield
 
     !---------------------------------------
 
