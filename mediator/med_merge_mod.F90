@@ -257,9 +257,6 @@ contains
     ! Get appropriate field pointers
     !-------------------------
 
-call FB_Field_diagnose(FB, trim(FBfld),'input taco', rc)
-call FB_Field_diagnose(FBout, trim(FBoutfld),'output taco', rc)
-
     ! Get field pointer to output field
     call ESMF_FieldBundleGet(FBout, fieldName=trim(FBoutfld), field=lfield, rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
