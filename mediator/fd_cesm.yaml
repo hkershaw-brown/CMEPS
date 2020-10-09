@@ -533,6 +533,7 @@
      - standard_name: Fogg_rofl_wiso
        canonical_units: kg m-2 s-1
        description: land-ice export - glacier_frozen_runoff_flux_to_ocean for 16O, 18O, HDO
+      
      #
      #-----------------------------------
      # section: sea-ice export
@@ -728,6 +729,22 @@
        alias: mean_snow_volume
        canonical_units: m
        description: sea-ice export - volume of snow per unit area
+             
+     - standard_name: concforww
+       alias: sea_ice_concentration
+       canonical_units: 1
+       description: sea-ice export to wave
+       
+     - standard_name: diamforww
+       alias: sea_ice_floe_diameter
+       canonical_units: m
+       description: sea-ice export to wave
+       
+    - standard_name: thickforww
+       alias: sea_ice_floe_thickness
+       canonical_units: m
+       description: sea-ice export to wave
+
      #
      #-----------------------------------
      # section: ocean export to mediator
@@ -1111,187 +1128,187 @@
      #   
 
      - standard_name: wav_tauice1
-       canonical_units: 1
+       canonical_units: m^2 s-2
        description: ice import from wave
          wave-ice momentum flux
          cesm only
 
      - standard_name: wav_tauice2
-       canonical_units: 1
+       canonical_units: m^2 s-2
        description: ice import from wave 
          wave-ice momentum flux 
          cesm only 
 
      - standard_name: wave_elevation_spectrum1
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum2
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum3
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum4
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum5
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum6
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum7
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum8
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum9
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum10
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum11
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum12
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum13
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum14
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum15
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum16
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum17
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum18
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum19
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum20
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum21
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum22
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum23
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum24
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
 
      #
      - standard_name: wave_elevation_spectrum25
-       canonical_units: 1
+       canonical_units: m^2 s
        description: ice import from wave
          spectrum of wave elevations
          cesm only
