@@ -720,6 +720,17 @@
        description: sea-ice export
          volume of ice per unit area
      #
+     - standard_name: Si_thick
+       canonical_units: m
+       description: sea-ice export
+         sea ice thickness
+     #
+     - standard_name: Si_floediam
+       canonical_units: m
+       description: sea-ice export
+         sea ice floe diameter
+
+     #
      - standard_name: Si_snowh
        canonical_units: m
        description: sea-ice export - surface_snow_water_equivalent

@@ -1723,19 +1723,30 @@ contains
 
     !----------------------------------------------------------
     ! to wav: fractional ice coverage wrt ocean from ice
+    !         ice thickness (m)
+    !         representative floe diameter (m)
     !----------------------------------------------------------
-    if (phase == 'advertise') then
-       call addfld(fldListFr(compice)%flds, 'Si_ifrac')
-       call addfld(fldListTo(compwav)%flds, 'Si_ifrac')
-    else
-       if ( fldchk(is_local%wrap%FBexp(compwav)         , 'Si_ifrac', rc=rc) .and. &
-            fldchk(is_local%wrap%FBImp(compice,compice ), 'Si_ifrac', rc=rc)) then
-             ! By default will be using a custom map - but if one is not available, use a generated bilinear instead
-          call addmap(fldListFr(compice)%flds, 'Si_ifrac', compwav, mapbilnr, 'one', ice2wav_smap)
-          call addmrg(fldListTo(compwav)%flds, 'Si_ifrac', &
-               mrg_from1=compice, mrg_fld1='Si_ifrac', mrg_type1='copy')
+   
+    allocate(flds(3))
+    flds = (/'Si_ifrac','Si_thick', 'Si_floediam'/)
+
+    do n = 1,size(flds)
+       fldname = trim(flds(n))
+       if (phase == 'advertise') then
+          call addfld(fldListFr(compice)%flds, trim(fldname))
+          call addfld(fldListTo(compwav)%flds, trim(fldname))
+       else
+          if ( fldchk(is_local%wrap%FBexp(compwav)        , trim(fldname), rc=rc) .and. &
+               fldchk(is_local%wrap%FBImp(compice,compice), trim(fldname), rc=rc)) then
+              ! By default will be using a custom map - but if one is not available, use a generated bilinear instead
+             call addmap(fldListFr(compice)%flds, trim(fldname), compwav, mapbilnr      , 'one', ice2wav_smap)
+             call addmrg(fldListTo(compwav)%flds, trim(fldname), &
+                  mrg_from1=compice, mrg_fld1=trim(fldname), mrg_type1='copy')
+          end if
        end if
-    end if
+    end do
+    deallocate(flds)
+
 
     ! ---------------------------------------------------------------------
     ! to wav: ocean boundary layer depth from ocn
