@@ -847,6 +847,12 @@ contains
     use wav_comp_nuopc        , only : WAVSetVM => SetVM
 #endif
 #endif
+#ifdef ESP_PRESENT
+    use esp_comp_nuopc        , only : ESPSetServices => SetServices
+#ifdef  ESMF_AWARE_THREADING 
+    use esp_comp_nuopc        , only : ESPSetVM => SetVM
+#endif
+#endif
 #ifdef ROF_PRESENT
     use rof_comp_nuopc        , only : ROFSetServices => SetServices
 #ifdef ESMF_AWARE_THREADING
