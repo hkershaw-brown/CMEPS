@@ -4170,7 +4170,7 @@
     <value component="rof">$ROF_PIO_ASYNC_INTERFACE</value>
     <value component="glc">$GLC_PIO_ASYNC_INTERFACE</value>
     <value component="wav">$WAV_PIO_ASYNC_INTERFACE</value>
-    <value component="esp">$ESP_PIO_TYPENAME</value>
+    <value component="esp">$ESP_PIO_ASYNC_INTERFACE</value>
     </values>
   </entry>
 
