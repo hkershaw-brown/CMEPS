@@ -4273,7 +4273,7 @@
     <value component="rof">$ROF_PIO_TYPENAME</value>
     <value component="glc">$GLC_PIO_TYPENAME</value>
     <value component="wav">$WAV_PIO_TYPENAME</value>
-    <value component="esp">nothing</value>
+    <value component="esp">$ESP_PIO_TYPENAME</value>
     </values>
   </entry>
 
